@@ -1,0 +1,7 @@
+streamlit
+transformers
+torch
+speechrecognition
+pyaudio
+PyPDF2
+pandas
