@@ -24,6 +24,6 @@ def caption_image(uploaded_file: UploadedFile) -> str:
     response = requests.post(API_URL, headers=headers, data=data)
     try:
         caption = response.json()[0]["generated_text"]
-    except Exception as e:
-        caption = str(e)
+    except:
+        caption = "An error occurred while generating the caption."
     return caption
