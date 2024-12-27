@@ -1,1 +1,2 @@
 # This file initializes the CV module, allowing for easier imports of the computer vision functionalities.
+from .image_captioning import caption_image
