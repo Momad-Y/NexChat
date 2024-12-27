@@ -1,19 +1,29 @@
-from transformers import BlipProcessor, BlipForConditionalGeneration
-from PIL import Image
+import requests
+from dotenv import dotenv_values, find_dotenv
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-# Initialize the processor and model for image captioning
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+API_URL = (
+    "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
+)
 
-def caption_image(image_path):
-    # Open the image file
-    image = Image.open(image_path)
-    
-    # Preprocess the image
-    inputs = processor(image, return_tensors="pt")
-    
-    # Generate the caption
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
-    
+huggingface_api_key = dotenv_values(find_dotenv())["HUGGINGFACE_API_KEY"]
+headers = {"Authorization": f"Bearer {huggingface_api_key}"}
+
+
+def caption_image(uploaded_file: UploadedFile) -> str:
+    """
+    Captions an image using an AI-powered model.
+
+    Args:
+        uploaded_file (UploadedFile): The image file to be captioned.
+
+    Returns:
+        str: The generated caption for the image, or an error message if the captioning process failed.
+    """
+    data = uploaded_file.getvalue()
+    response = requests.post(API_URL, headers=headers, data=data)
+    try:
+        caption = response.json()[0]["generated_text"]
+    except Exception as e:
+        caption = str(e)
     return caption
