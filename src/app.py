@@ -8,31 +8,27 @@ import random
 import itertools
 import time
 
+from audio import get_audio_input, speak_text
 from cv import caption_image
-from nlp.question_answering import answer_question
-from nlp.summarization import summarize_text
-from audio import get_audio_input, speak_text, init
-from memory import ChatMemory
-from utils import read_pdf, read_csv, read_arxiv, get_file_extension
+from nlp import qa, summarize_text
+from utils import read_file
 
 
-def mygenerator():
+def test_generator():
     for i in range(10):
         yield f"Hello {i}\n"
         time.sleep(0.5)
 
 
-# Initialize chat memory
-# chat_memory = ChatMemory()
-
-# Initialize audio output engine
-# init()
-# speak_text("Welcome to the AI-powered chatbot.")
-
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "image_caption" not in st.session_state:
+    st.session_state.image_caption = ""
+
+if "text_summarization" not in st.session_state:
+    st.session_state.text_summarization = ""
 
 # Set page config
 st.set_page_config(
@@ -79,20 +75,91 @@ if task_name == "Image Captioning":
     if uploaded_file:
         # Split the page into two columns
         col1, col2 = st.columns(2)
+        _, col21, col22 = col2.columns([1, 6, 6])
 
         # Display the uploaded image in the first column
         col1.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
 
         # Display the caption button in the second column
-        if col2.button("Caption Image"):
+        if col21.button("Caption Image"):
             response = caption_image(uploaded_file)
-            col2.write(f"**Caption:** {response}")
+            response = response.capitalize()
+            response += "."
+            st.session_state.image_caption = response
+            col2.write(f"**Caption:** {st.session_state.image_caption}")
+
+        if col22.button("Audio Output", key="audio_image_caption"):
+            col2.write(f"**Caption:** {st.session_state.image_caption}")
+            speak_text(st.session_state.image_caption)
+
     else:
         st.write("Please upload an image file for captioning.")
 
+elif task_name == "Text Summarization":
+    text_input = st.radio("Select the input type:", ["Text", "File", "Audio"])
+    response = ""
+
+    if text_input == "Audio":
+        if st.button("Start Recording"):
+            audio_input = get_audio_input()
+            if audio_input:
+                st.write(f"**You (audio):** {audio_input}")
+                generator = summarize_text(audio_input)
+                generator, generator2 = itertools.tee(generator)
+                for chunk in generator2:
+                    response += chunk
+                st.write_stream(generator)
+                st.session_state.text_summarization = response
+            else:
+                st.write("No audio input detected. Please try again.")
+
+        else:
+            st.write("Click the button above to start recording an audio input.")
+
+        if st.button("Audio Output", key="audio_text_summarization"):
+            speak_text(st.session_state.text_summarization)
+
+    elif text_input == "Text":
+        if prompt := st.text_area("Enter a text for summarization:"):
+            generator = summarize_text(prompt)
+            generator, generator2 = itertools.tee(generator)
+            for chunk in generator2:
+                response += chunk
+            st.write_stream(generator)
+            st.session_state.text_summarization = response
+        else:
+            st.write("Please enter a text for summarization.")
+
+        if st.button("Audio Output", key="audio_text_summarization"):
+            speak_text(st.session_state.text_summarization)
+
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload a file",
+            type=["pdf", "csv", "txt", "md"],
+            accept_multiple_files=False,
+        )
+        if uploaded_file:
+            text = read_file(uploaded_file)
+            if text == "Unsupported file type.":
+                st.write("Unsupported file type. Please upload a supported file type.")
+                st.stop()
+            generator = summarize_text(text)
+            generator, generator2 = itertools.tee(generator)
+            for chunk in generator2:
+                response += chunk
+            st.write_stream(generator)
+            st.session_state.text_summarization = response
+        else:
+            st.write("Please upload a file or enter a text for summarization.")
+
+        if st.button("Audio Output", key="audio_text_summarization"):
+            speak_text(st.session_state.text_summarization)
+
+
 else:
     uploaded_file = st.file_uploader(
-        "Upload a file", type=["pdf", "csv"], accept_multiple_files=True
+        "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=True
     )
     st.divider()
 
@@ -127,7 +194,7 @@ else:
                 # )
 
                 # Create a test generator
-                generator = mygenerator()
+                generator = test_generator()
 
                 generator, generator2 = itertools.tee(generator)
 
@@ -144,82 +211,6 @@ else:
         if random.random() > 0.9:
             st.balloons()
 
-
-# # Display chat history
-# context = ""
-# for message in chat_memory.get_history():
-#     if message["sender"] == "User":
-#         st.write(f"**You:** {message['message']}")
-#         context += f"User: {message['message']} "
-#     else:
-#         st.write(f"**Bot:** {message['message']}")
-#         context += f"Bot: {message['message']} "
-
-# # Button to start a new chat
-# if st.button("Start New Chat"):
-#     chat_memory.clear_history()
-#     st.experimental_set_query_params()
-
-# # User input
-# user_input = st.text_input("You: ")
-
-
-# # Process user input
-# if user_input:
-#     # Add user input to chat history
-#     chat_memory.add_message("User", user_input)
-
-#     # Determine the type of task
-#     if user_input.startswith("summarize"):
-#         if uploaded_file:
-#             file_extension = get_file_extension(uploaded_file.name)
-#             if file_extension == "pdf":
-#                 file_text = read_pdf(uploaded_file)
-#             elif file_extension == "csv":
-#                 file_text = read_csv(uploaded_file)
-#             elif file_extension == "arxiv":
-#                 file_text = read_arxiv(uploaded_file)
-#             else:
-#                 file_text = "Unsupported file type."
-#             response = summarize_text(file_text)
-#         else:
-#             response = summarize_text(user_input)
-#     elif user_input.startswith("caption"):
-#         if uploaded_file:
-#             response = caption_image(uploaded_file)
-#         else:
-#             response = "Please upload an image file for captioning."
-#     else:
-#         response = answer_question(user_input, context)
-
-#     # Add response to chat history
-#     chat_memory.add_message("Bot", response)
-
-#     # Display response
-#     st.write(f"**Bot:** {response}")
-
-#     # Follow-up question input
-#     follow_up_input = st.text_input("Follow-up question:")
-#     if follow_up_input:
-#         chat_memory.add_message("User", follow_up_input)
-#         context += f"User: {follow_up_input} "
-#         response = answer_question(follow_up_input, context)
-#         chat_memory.add_message("Bot", response)
-#         context += f"Bot: {response} "
-#         st.write(f"**Bot:** {response}")
-
-#     # Optional: Audio output
-#     if st.checkbox("Enable audio output"):
-#         speak_text(response)
-# # Optional: Audio input
-# if st.checkbox("Enable audio input"):
-#     audio_input = get_audio_input()
-#     if audio_input:
-#         st.write(f"**You (audio):** {audio_input}")
-#         chat_memory.add_message("User", audio_input)
-#         # Process audio input similarly to text input
-#         response = answer_question(audio_input, context)
-#         chat_memory.add_message("Bot", response)
-#         st.write(f"**Bot:** {response}")
-#         if st.checkbox("Enable audio output"):
-#             speak_text(response)
+    # Add a button to clear the chat history
+    if st.button("Start New Chat"):
+        st.session_state.messages = []
