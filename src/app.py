@@ -27,6 +27,9 @@ if "image_caption" not in st.session_state:
 
 if "text_summarization" not in st.session_state:
     st.session_state.text_summarization = ""
+    
+if "audio_input" not in st.session_state:
+    st.session_state.audio_input = ""
 
 # Set page config
 st.set_page_config(
@@ -80,8 +83,6 @@ if task_name == "Image Captioning":
         # Display the caption button in the second column
         if col21.button("Caption Image"):
             response = caption_image(uploaded_files)
-            response = response.capitalize()
-            response += "."
             st.session_state.image_caption = response
             col2.write(f"**Caption:** {st.session_state.image_caption}")
 
@@ -97,17 +98,19 @@ elif task_name == "Text Summarization":
     response = ""
 
     if text_input == "Audio":
-        if st.button("Start Recording"):
+        if st.button("Start Recording", use_container_width=True):
             audio_input = get_audio_input(duration=30)
             if audio_input:
-                st.write(f"**You (audio):** {audio_input}")
+                st.session_state.audio_input = audio_input.capitalize().strip() + "."
                 generator = summarize_text(audio_input)
                 generator, generator2 = itertools.tee(generator)
                 for chunk in generator2:
                     response += chunk
                 st.session_state.text_summarization = response
             else:
-                generator = custom_message_generator("An error occurred while generating the answer.")
+                generator = custom_message_generator("An error occurred while recording the audio.")
+            
+            st.write(f"**You (audio):** {st.session_state.audio_input}")
 
         else:
             generator = custom_message_generator("Click the button to start recording.")
@@ -115,8 +118,10 @@ elif task_name == "Text Summarization":
         st.write_stream(generator)
         
         if st.button("Audio Output", key="audio_text_summarization"):
-            speak_text(st.session_state.text_summarization if st.session_state.text_summarization != "" else "No response to output.")
-
+            st.write(f"**You (audio):** {st.session_state.audio_input}")
+            st.write(st.session_state.text_summarization)
+            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
+            
     elif text_input == "Text":
         if query := st.text_area("Enter a text for summarization:"):
             generator = summarize_text(query)
@@ -130,7 +135,7 @@ elif task_name == "Text Summarization":
         st.write_stream(generator)
         
         if st.button("Audio Output", key="audio_text_summarization"):
-            speak_text(st.session_state.text_summarization if st.session_state.text_summarization != "" else "No response to output.")
+            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
 
     else:
         uploaded_files = st.file_uploader(
@@ -141,8 +146,7 @@ elif task_name == "Text Summarization":
         if uploaded_files:
             text = read_file(uploaded_files)
             if text == "Unsupported file type.":
-                st.write("Unsupported file type. Please upload a supported file type.")
-                st.stop()
+                generator = custom_message_generator(text)
             generator = summarize_text(text)
             generator, generator2 = itertools.tee(generator)
             for chunk in generator2:
@@ -154,7 +158,7 @@ elif task_name == "Text Summarization":
         st.write_stream(generator)
         
         if st.button("Audio Output", key="audio_text_summarization"):
-            speak_text(st.session_state.text_summarization if st.session_state.text_summarization != "" else "No response to output.")
+            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
 
 else:
     uploaded_files = st.file_uploader(
