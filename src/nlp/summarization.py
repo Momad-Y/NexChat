@@ -44,6 +44,8 @@ def summarize_text(text: str) -> Generator[str, str, str]:
             summary = response.json()[0]["summary_text"]
         except:
             summary = "An error occurred while generating the summary."
+            
+        summary = "**Summary:** " + summary.capitalize().strip()
 
         # split the summary into sentences
         sentences = summary.split(".")
