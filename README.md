@@ -1,9 +1,8 @@
 <center>
 <img src="imgs/logo.png" width="300">
+</center>
 
 # (NexChat) AI Chatbot with Multimodal Capabilities
-
-</center>
 
 ## Project Description
 
