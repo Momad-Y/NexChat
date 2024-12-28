@@ -26,7 +26,7 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 ## Project File Structure
 
 ```
-Project - AI-Powered Chatbot ST/
+ai-powered-chatbot/
 ├── data/
 │   ├── test_data...
 ├── imgs/
