@@ -25,5 +25,6 @@ def caption_image(uploaded_file: UploadedFile) -> str:
     try:
         caption = response.json()[0]["generated_text"]
     except:
-        caption = "An error occurred while generating the caption."
-    return caption
+        caption = "an error occurred while generating the caption"
+    
+    return caption.capitalize().strip() + "."
