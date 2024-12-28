@@ -1,6 +1,8 @@
 import PyPDF2
 import pandas as pd
 from streamlit.runtime.uploaded_file_manager import UploadedFile
+from typing import Generator
+import time
 
 
 def read_file(uploaded_file: UploadedFile) -> str:
@@ -147,3 +149,21 @@ def get_file_extension(filename: str) -> str:
         str: The file extension.
     """
     return filename.split(".")[-1]
+
+
+def custom_message_generator(msg: str) -> Generator[str, str, str]:
+    """
+    Generates a custom message.
+
+    Args:
+        msg (str): The message to be generated.
+
+    Returns:
+        Generator[str, str, str]: A generator that yields the message.
+    """
+
+    words = msg.split(" ")
+
+    for word in words:
+        yield word + " "
+        time.sleep(0.1)
