@@ -2,12 +2,17 @@ import requests
 from dotenv import dotenv_values, find_dotenv
 from typing import Generator
 import time
+import streamlit as st
 
 API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
 MAX_CHUNK_SIZE = 1000
 MAX_NEW_TOKENS = 50
 
-huggingface_api_key = dotenv_values(find_dotenv())["HUGGINGFACE_API_KEY"]
+try:
+    huggingface_api_key = dotenv_values(find_dotenv())["HUGGINGFACE_API_KEY"]
+except:
+    huggingface_api_key = st.secrets["HUGGINGFACE_API_KEY"]
+
 headers = {"Authorization": f"Bearer {huggingface_api_key}"}
 
 
@@ -44,7 +49,7 @@ def summarize_text(text: str) -> Generator[str, str, str]:
             summary = response.json()[0]["summary_text"]
         except:
             summary = "An error occurred while generating the summary."
-            
+
         summary = "**Summary:** " + summary.capitalize().strip()
 
         # split the summary into sentences

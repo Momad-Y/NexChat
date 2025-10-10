@@ -1,12 +1,17 @@
 import requests
 from dotenv import dotenv_values, find_dotenv
 from streamlit.runtime.uploaded_file_manager import UploadedFile
+import streamlit as st
 
 API_URL = (
     "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
 )
 
-huggingface_api_key = dotenv_values(find_dotenv())["HUGGINGFACE_API_KEY"]
+try:
+    huggingface_api_key = dotenv_values(find_dotenv())["HUGGINGFACE_API_KEY"]
+except:
+    huggingface_api_key = st.secrets["HUGGINGFACE_API_KEY"]
+
 headers = {"Authorization": f"Bearer {huggingface_api_key}"}
 
 
@@ -24,7 +29,7 @@ def caption_image(uploaded_file: UploadedFile) -> str:
     response = requests.post(API_URL, headers=headers, data=data)
     try:
         caption = response.json()[0]["generated_text"]
-    except:
-        caption = "an error occurred while generating the caption"
-    
+    except Exception as e:
+        caption = f"an error occurred while generating the caption: {e}"
+
     return caption.capitalize().strip() + "."

@@ -8,6 +8,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import Runnable
+import streamlit as st
 
 from utils import read_file
 
@@ -18,10 +19,14 @@ import time
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from typing import Generator
 
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = dotenv_values(find_dotenv())[
-    "HUGGINGFACE_API_KEY"
-]
-os.environ["GOOGLE_API_KEY"] = dotenv_values(find_dotenv())["GEMINI_API_KEY"]
+try:
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = dotenv_values(find_dotenv())[
+        "HUGGINGFACE_API_KEY"
+    ]
+    os.environ["GOOGLE_API_KEY"] = dotenv_values(find_dotenv())["GEMINI_API_KEY"]
+except Exception as e:
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACE_API_KEY"]
+    os.environ["GOOGLE_API_KEY"] = st.secrets["GEMINI_API_KEY"]
 
 
 def init_llm_model() -> ChatGoogleGenerativeAI:
@@ -215,7 +220,7 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, str, str
         Generator[str, str, str]: A generator that yields the generated answers, or None if an error occurred.
     """
     chat_history = []
-        
+
     for message in messages:
         if message["role"] == "user":
             user_message = HumanMessage(content=message["content"])
@@ -226,7 +231,7 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, str, str
         chat_history.extend([user_message, ai_answer])
     except Exception as e:
         pass
-    
+
     try:
         response = qa_model.invoke({"chat_history": chat_history, "input": text})
         answer = response["answer"].strip()
