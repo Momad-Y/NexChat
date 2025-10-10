@@ -1,0 +1,52 @@
+{
+    "name": "AI-Powered Chatbot (NexChat)",
+    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye",
+    "customizations": {
+        "codespaces": {
+            "openFiles": ["README.md", "src/app.py", "requirements.txt"]
+        },
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "python.formatting.provider": "black",
+                "files.exclude": {
+                    "**/__pycache__": true,
+                    "**/*.pyc": true
+                }
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.black-formatter",
+                "ms-python.isort",
+                "ms-toolsai.jupyter",
+                "ms-toolsai.vscode-jupyter-cell-tags",
+                "ms-toolsai.vscode-jupyter-slideshow",
+                "ms-vscode.vscode-json",
+                "redhat.vscode-yaml",
+                "ms-vscode.vscode-markdown"
+            ]
+        }
+    },
+    "updateContentCommand": "sudo apt update && sudo apt upgrade -y && sudo apt install -y portaudio19-dev python3-pyaudio ffmpeg libsndfile1 && [ -f requirements.txt ] && pip3 install --user -r requirements.txt && echo '✅ Audio dependencies and requirements installed'",
+    "postAttachCommand": {
+        "server": "cd src && streamlit run app.py --server.enableCORS false --server.enableXsrfProtection false"
+    },
+    "portsAttributes": {
+        "8501": {
+            "label": "NexChat Application",
+            "onAutoForward": "openPreview"
+        }
+    },
+    "forwardPorts": [8501],
+    "containerEnv": {
+        "TF_CPP_MIN_LOG_LEVEL": "2",
+        "PYTHONPATH": "/workspaces/${localWorkspaceFolder}/src"
+    },
+    "mounts": [
+        "source=${localWorkspaceFolder}/data,target=/workspaces/${localWorkspaceFolder}/data,type=bind,consistency=cached"
+    ]
+}
