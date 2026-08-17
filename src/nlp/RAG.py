@@ -40,7 +40,7 @@ def init_llm_model() -> ChatGoogleGenerativeAI:
         ChatGoogleGenerativeAI: An instance of the ChatGoogleGenerativeAI model.
     """
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         temperature=0.1,
         max_tokens=None,
         timeout=None,
@@ -79,7 +79,9 @@ def init_prompt() -> ChatPromptTemplate:
     contextualize_q_system_prompt = """Given a chat history and the latest user question \
     which might reference context in the chat history, formulate a standalone question \
     which can be understood without the chat history. Do NOT answer the question, \
-    just reformulate it if needed and otherwise return it as is."""
+    just reformulate it if needed and otherwise return it as is. \
+    IMPORTANT: If the new question is different from previous questions, treat it as a completely new query. \
+    Do not reference or repeat previous questions or answers."""
 
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
@@ -96,6 +98,9 @@ def init_prompt() -> ChatPromptTemplate:
     2. If the answer cannot be determined from the context, explicitly state: 
     "I don't know, but you can check other resources online."
     3. If the answer can be determined, provide it concisely, limited to a maximum of five sentences.
+    4. IMPORTANT: Always provide a fresh, direct answer to the current question. Do not repeat previous answers or responses from the chat history.
+    5. Focus only on the specific question being asked, not on previous questions or answers in the conversation.
+    6. If asked the same question multiple times, provide the same answer but do not reference that it was asked before.
 
     Context:
     {context}
