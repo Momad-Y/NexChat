@@ -1,0 +1,13 @@
+# Normalize all text files to LF in the repository and on checkout.
+# Prevents CRLF churn when files round-trip through Windows filesystems.
+* text=auto eol=lf
+
+# Explicitly binary — never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.mp3 binary
+*.wav binary
