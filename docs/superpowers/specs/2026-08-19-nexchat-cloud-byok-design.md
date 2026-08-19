@@ -118,7 +118,23 @@ Rules:
 ### 4.3 RAG changes
 
 - `init_RAG()` at module scope is deleted. Models are built lazily once keys exist.
-- `create_vector_store` becomes cached on `(file contents hash, key presence)` via `st.cache_resource`, fixing F6.
+- The vector store is memoised in **`st.session_state`**, keyed on a SHA-256 of the
+  uploaded file bytes. It rebuilds only when the uploaded set changes, fixing F6.
+
+> **SECURITY — do not use `st.cache_resource` or `st.cache_data` here.**
+> Streamlit's own source describes these caches as *"shared across all users,
+> sessions, and reruns"*
+> (`streamlit/runtime/caching/cache_resource_api.py`). On Community Cloud the
+> process is shared by every visitor, so a globally cached vector store would
+> serve one user's uploaded documents to another user, and a globally cached
+> provider client would bill one user's BYOK key for another user's requests.
+>
+> Rule for this codebase: **anything derived from a user's API key or uploaded
+> content lives in `st.session_state` only.** The global caches may be used
+> only for genuinely static, non-user-derived data.
+
+An earlier draft of this spec specified `st.cache_resource` for the vector
+store. That was a document-disclosure bug and is retracted.
 
 ### 4.4 Audio (rewritten)
 
@@ -188,8 +204,39 @@ The bare `except: pass` in `audio_output.py:30` and the bare `except:` blocks in
 5. **UI/UX** — sidebar, states, shared result component, GitHub link.
 6. **Deploy** — slim requirements, empty packages.txt, deploy and run the parity matrix.
 
-## 10. Open risks
+## 10. Verification status
+
+Checked directly against the installed `.venv` (streamlit 1.41.1) and live network,
+rather than assumed:
+
+| Claim | Result | Method |
+|---|---|---|
+| `st.audio_input` exists in streamlit 1.41.1 | ✅ present | `hasattr(st,'audio_input')` |
+| `GoogleGenerativeAIEmbeddings` in installed langchain-google-genai | ✅ imports | direct import |
+| `st.cache_resource` is cross-user | ⚠️ **confirmed shared** | streamlit source string |
+| SpeechRecognition reads WAV without ffmpeg/pydub | ✅ works | parsed a synthetic WAV; `pydub` not installed |
+| `langchain_huggingface` confined to RAG.py | ✅ 5 refs, all in `RAG.py` | grep |
+| legacy `api-inference.huggingface.co` | ❌ dead (HTTP 000) | curl |
+| `router.huggingface.co` | ✅ alive (HTTP 401) | curl |
+| Google STT host reachable | ✅ responds (HTTP 411) | curl |
+| gTTS host reachable | ✅ responds (HTTP 200) | curl |
+
+Because SpeechRecognition parses WAV natively, **`ffmpeg` is not required** and
+`packages.txt` can be emptied as planned (§6).
+
+**Still to confirm at runtime (phase 3):** the exact container `st.audio_input`
+returns. The plan assumes WAV, which SpeechRecognition consumes directly. If it
+returns WebM/Opus instead, a decode step is needed and `ffmpeg` must return to
+`packages.txt` — this is the one assumption that could change §6.
+
+## 11. Open risks
 
 - Hosted embeddings change retrieval quality vs `bge-small-en-v1.5`. Mitigation: verify against the existing sample docs in `data/` during phase 2.
 - The keyless Google Web Speech endpoint is undocumented and may rate-limit or disappear. Mitigation: isolate behind the provider interface so a keyed STT provider can be swapped in without touching callers.
 - Community Cloud may still be slow on first load. Mitigation: measure after phase 6.
+- **Shared egress IP.** Every visitor to the deployed app leaves from the same
+  Cloud IP. The keyless STT endpoint and gTTS both rate-limit per IP, so they may
+  degrade under concurrent use in a way they never do locally. This is inherent to
+  keeping STT keyless (D2) and is the strongest argument for revisiting that
+  decision if usage grows. Mitigation: both sit behind the provider interface, so
+  a keyed provider can be swapped in without touching callers.
