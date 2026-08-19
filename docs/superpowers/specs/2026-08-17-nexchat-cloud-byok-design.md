@@ -55,7 +55,14 @@ no new credential. Makes the Cloud resource ceiling a non-issue.
 uploads incur per-chunk API latency that local embedding did not. Loses
 offline capability.
 
-**Verdict:** Hosted, via `GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")`.
+**Verdict:** Hosted, via `GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")`.
+
+**Correction (verified 2026-08-19):** the draft named `models/text-embedding-004`,
+which Google **deprecated on 14 January 2026**. The current model is
+`gemini-embedding-001`. Two consequences the draft missed: it has a **2048
+input-token limit**, so the RAG splitter must cap chunks below that rather than
+using an arbitrary size; and `langchain-google-genai` is pinned at `2.0.7`
+while current embedding support wants `>=4.0.0`, so that pin must move.
 Deciding factor: no other option reliably fits Community Cloud's ceiling, and
 this one costs zero additional keys.
 
@@ -64,17 +71,35 @@ exceed ceiling); environment-conditional local/hosted split (doubles code
 paths and makes local and deployed behave differently, contradicting the
 stated goal).
 
-### D2 — BYOK scope: Gemini + HuggingFace
+### D2 — BYOK scope: Gemini + HuggingFace (REVISED after verification)
 
-**For:** Matches the providers already in use, so summarization keeps BART and
-captioning keeps BLIP. Two clearly-labelled inputs is a comprehensible UX.
+The draft kept both providers so summarization would keep BART and captioning
+would keep BLIP, preserving user-visible output. Verification broke half of that
+premise.
 
-**Against:** Keeps a second provider that can fail independently, and leaves
-speech-to-text on an unauthenticated, rate-limited Google endpoint.
+**Verified 2026-08-19 via the HF model API:**
 
-**Verdict:** Two keys. Deciding factor: consolidating onto Gemini would silently
-change which models produce user-visible output, which exceeds the mandate to
-preserve existing functionality.
+- `facebook/bart-large-cnn` — `hf-inference` status **`live`**. Summarization
+  survives; it only needs the URL re-pointed to the router.
+- `Salesforce/blip-image-captioning-base` — **no inference providers at all**.
+  HF Inference no longer lists `image-to-text` among supported tasks; as of
+  July 2025 it focuses on CPU inference. Captioning cannot stay on HF at any URL.
+
+**For:** Summarization keeps its existing model and output characteristics.
+Captioning moves to Gemini, which handles image understanding natively and
+reuses a key the user already supplies.
+
+**Against:** Captions will be produced by Gemini rather than BLIP, so wording
+will change. This is unavoidable — the BLIP path is gone, not degraded. Gemini
+captions are generally richer than BLIP's terse single sentence, which may
+warrant a prompt that requests a short caption to preserve the current feel.
+
+**Verdict:** Two keys still, with narrowed scope. **Gemini** — chat, embeddings,
+and image captioning. **HuggingFace** — summarization only. STT stays keyless.
+
+**Deciding factor:** BLIP is unreachable, so "preserve existing models" is no
+longer achievable for captioning; among the remaining options, Gemini adds no
+new credential and no new dependency.
 
 ### D3 — Key persistence: session-only + local `.env` autofill
 
@@ -209,7 +234,9 @@ hosted embeddings → FAISS → retriever → Gemini chat → true token stream.
 | Audio output | local speaker only | impossible | browser player, both |
 | Chat history / new chat | works | works | works |
 
-No feature is dropped.
+No feature is dropped. One changes provider: image captioning moves from BLIP
+to Gemini because BLIP is no longer served (see D2). Caption wording will differ
+from today's output.
 
 ## 6. Dependencies
 
@@ -218,6 +245,8 @@ No feature is dropped.
 **`packages.txt`:** emptied — no system libraries remain.
 **Retained:** `streamlit`, `langchain*`, `faiss-cpu`, `langchain-google-genai`,
 `SpeechRecognition`, `gTTS`, `requests`, `PyPDF2`, `pandas`, `python-dotenv`.
+**Upgraded:** `langchain-google-genai` `2.0.7` → `>=4.0.0` (required for
+`gemini-embedding-001`).
 **Target:** `requirements.txt` from 119 lines to roughly 15 direct pins.
 
 ## 7. UI/UX rework
@@ -269,15 +298,20 @@ Claims checked empirically rather than assumed (venv, 2026-08-18):
 | `st.audio_input` availability | **Present in streamlit 1.41.1**, the version already pinned. No upgrade required. |
 | Legacy HF endpoint status | **Dead** — `api-inference.huggingface.co` → HTTP `000`; `router.huggingface.co` → `401`. |
 | `st.cache_*` scope | **Global across users and sessions.** Drove the D7 revision above. |
+| `text-embedding-004` current? | **No — deprecated 14 Jan 2026.** Use `gemini-embedding-001` (2048 input-token cap; `langchain-google-genai>=4.0.0`). |
+| `bart-large-cnn` still served? | **Yes** — `hf-inference` status `live`. |
+| `blip-image-captioning-base` still served? | **No — zero inference providers.** HF Inference dropped `image-to-text`. Captioning moves to Gemini. |
+| HF router URL format | `https://router.huggingface.co/hf-inference/models/{model}` |
+| Community Cloud ceiling | **~1GB memory**, apps sleep after 12h idle; limits may change without notice. Confirms the torch cull is necessary. |
 | `sr.AudioFile` accepts browser WAV | **Yes** — 48kHz/44.1kHz/16kHz, mono and stereo all parse; no resampling needed. |
 | `recognize_google` needs a FLAC encoder | **Yes, but self-contained** — SpeechRecognition ships `flac-linux-x86_64`, `flac-mac`, `flac-win32.exe`. With system `flac` removed from PATH it falls back to the bundled binary. `packages.txt` can be emptied. |
 
 Still unverified — must be confirmed during implementation, not assumed:
 
-- Current Gemini embedding model id, and per-request batch/rate limits when
-  embedding large uploads through `langchain-google-genai`.
-- Streamlit Community Cloud's exact memory ceiling, and measured install size
-  after the dependency cull.
+- Per-request batch size and free-tier rate limits for `gemini-embedding-001`
+  when embedding a large upload; backoff/batching strategy may be required.
+- Measured install size after the dependency cull, against the ~1GB ceiling.
+
 - Upload size limits, FAISS memory profile, and session-state growth under
   sustained use.
 
