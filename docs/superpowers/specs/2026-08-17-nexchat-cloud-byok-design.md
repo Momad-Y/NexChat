@@ -269,6 +269,8 @@ Claims checked empirically rather than assumed (venv, 2026-08-18):
 | `st.audio_input` availability | **Present in streamlit 1.41.1**, the version already pinned. No upgrade required. |
 | Legacy HF endpoint status | **Dead** — `api-inference.huggingface.co` → HTTP `000`; `router.huggingface.co` → `401`. |
 | `st.cache_*` scope | **Global across users and sessions.** Drove the D7 revision above. |
+| `sr.AudioFile` accepts browser WAV | **Yes** — 48kHz/44.1kHz/16kHz, mono and stereo all parse; no resampling needed. |
+| `recognize_google` needs a FLAC encoder | **Yes, but self-contained** — SpeechRecognition ships `flac-linux-x86_64`, `flac-mac`, `flac-win32.exe`. With system `flac` removed from PATH it falls back to the bundled binary. `packages.txt` can be emptied. |
 
 Still unverified — must be confirmed during implementation, not assumed:
 
@@ -276,7 +278,14 @@ Still unverified — must be confirmed during implementation, not assumed:
   embedding large uploads through `langchain-google-genai`.
 - Streamlit Community Cloud's exact memory ceiling, and measured install size
   after the dependency cull.
-- Whether `recognize_google` accepts `st.audio_input` WAV output without
-  resampling (sample-rate/encoding assumptions).
 - Upload size limits, FAISS memory profile, and session-state growth under
   sustained use.
+
+### Known caveat — FLAC on ARM
+
+The bundled FLAC binaries cover linux-x86, linux-x86_64, mac, and win32. There
+is no bundled ARM build. Streamlit Community Cloud is x86_64, so deployment is
+unaffected, but contributors on Apple Silicon or ARM Linux may need a system
+`flac` (`brew install flac` / `apt install flac`). This is a local-development
+note, not a deployment blocker, and belongs in the README rather than
+`packages.txt`.
