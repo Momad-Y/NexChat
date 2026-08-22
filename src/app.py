@@ -16,7 +16,7 @@ from nlp import (
 from nlp.vector_cache import compute_files_fingerprint, get_cached_vector_store, store_vector_store
 from utils import read_file, custom_message_generator
 from paths import asset_path
-from credentials import render_key_sidebar, get_gemini_key, get_huggingface_key, missing_key_message
+from credentials import render_key_sidebar, get_glm_key, get_huggingface_key, missing_key_message
 
 random.seed(time.time())
 
@@ -163,11 +163,16 @@ elif task_name == "Text Summarization":
                 st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
 else:
-    gemini_key = get_gemini_key(st.session_state)
-    if not gemini_key:
-        st.info(missing_key_message("Question Answering", "Gemini"))
-    else:
-        llm, embedding_model, prompt_template, contextualize_q_prompt = init_RAG(gemini_key)
+    glm_key = get_glm_key(st.session_state)
+    hf_key = get_huggingface_key(st.session_state)
+
+    if not glm_key:
+        st.info(missing_key_message("Question Answering", "GLM"))
+    if not hf_key:
+        st.info(missing_key_message("Question Answering", "HuggingFace"))
+
+    if glm_key and hf_key:
+        llm, embedding_model, prompt_template, contextualize_q_prompt = init_RAG(glm_key, hf_key)
 
         uploaded_files = st.file_uploader(
             "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=True
@@ -177,16 +182,21 @@ else:
         vector_store = qa_model = None
 
         if uploaded_files:
-            fingerprint = compute_files_fingerprint(uploaded_files, gemini_key)
+            fingerprint = compute_files_fingerprint(uploaded_files, hf_key)
             vector_store = get_cached_vector_store(st.session_state, fingerprint)
             if vector_store is None:
                 with st.spinner("Indexing files…"):
-                    vector_store = create_vector_store(uploaded_files, embedding_model)
-                    store_vector_store(st.session_state, fingerprint, vector_store)
+                    try:
+                        vector_store = create_vector_store(uploaded_files, embedding_model)
+                        store_vector_store(st.session_state, fingerprint, vector_store)
+                    except Exception:
+                        st.error("Couldn't index the uploaded files — check your HuggingFace key and try again.")
+                        vector_store = None
             else:
                 st.caption("Using cached index for this file set.")
 
-            qa_model = create_qa_model(vector_store, llm, prompt_template, contextualize_q_prompt)
+            if vector_store is not None:
+                qa_model = create_qa_model(vector_store, llm, prompt_template, contextualize_q_prompt)
 
         # Display the chat interface
         for message in st.session_state.messages:
