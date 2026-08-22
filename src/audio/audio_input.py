@@ -1,31 +1,37 @@
+import hashlib
+import io
+
 import speech_recognition as sr
-import chime
 
-DURATION = 5
+PROCESSED_HASH_KEY = "audio_input_last_processed_hash"
 
-def get_audio_input(duration: int = DURATION) -> str:
-    """
-    Function to get audio input from the user using the microphone.
 
-    Args:
-        duration (int): The duration in seconds for which the audio input should be recorded. Default is 5 seconds.
+def get_audio_input(audio_bytes: bytes) -> str | None:
+    """Recognizes speech from an in-memory WAV blob (browser-captured, no PyAudio)."""
+    if not audio_bytes:
+        return None
 
-    Returns:
-        str: The text recognized from the audio input, or None if the audio input could not be recognized.
-    """
-    chime.theme("chime")
     recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        chime.info()
-        audio = recognizer.record(source, duration=DURATION)
 
-        try:
-            text = recognizer.recognize_google(audio)
-            chime.success()
-            return text
-        except sr.UnknownValueError:
-            chime.warning()
-            return None
-        except sr.RequestError:
-            chime.warning()
-            return None
+    try:
+        with sr.AudioFile(io.BytesIO(audio_bytes)) as source:
+            audio = recognizer.record(source)
+    except Exception:
+        return None
+
+    try:
+        return recognizer.recognize_google(audio)
+    except sr.UnknownValueError:
+        return None
+    except sr.RequestError:
+        return None
+
+
+def has_processed(session_state: dict, audio_bytes: bytes) -> bool:
+    """Guards against re-processing the same sticky st.audio_input value on an unrelated rerun."""
+    current_hash = hashlib.sha256(audio_bytes).hexdigest()
+    return session_state.get(PROCESSED_HASH_KEY) == current_hash
+
+
+def mark_processed(session_state: dict, audio_bytes: bytes) -> None:
+    session_state[PROCESSED_HASH_KEY] = hashlib.sha256(audio_bytes).hexdigest()
