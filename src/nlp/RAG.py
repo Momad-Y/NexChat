@@ -4,43 +4,32 @@ from langchain.chains.history_aware_retriever import create_history_aware_retrie
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import Runnable
-import streamlit as st
 
 from utils import read_file
 
-from dotenv import dotenv_values, find_dotenv
-import os
 import time
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from typing import Generator
 
-try:
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = dotenv_values(find_dotenv())[
-        "HUGGINGFACE_API_KEY"
-    ]
-    os.environ["GOOGLE_API_KEY"] = dotenv_values(find_dotenv())["GEMINI_API_KEY"]
-except Exception as e:
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACE_API_KEY"]
-    os.environ["GOOGLE_API_KEY"] = st.secrets["GEMINI_API_KEY"]
 
-
-def init_llm_model() -> ChatGoogleGenerativeAI:
+def init_llm_model(gemini_api_key: str) -> ChatGoogleGenerativeAI:
     """
     Initializes and returns an instance of the ChatGoogleGenerativeAI model.
 
     Args:
-        None
+        gemini_api_key (str): The caller's Gemini API key.
 
     Returns:
         ChatGoogleGenerativeAI: An instance of the ChatGoogleGenerativeAI model.
     """
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
+        google_api_key=gemini_api_key,
         temperature=0.1,
         max_tokens=None,
         timeout=None,
@@ -50,18 +39,21 @@ def init_llm_model() -> ChatGoogleGenerativeAI:
     return llm
 
 
-def init_embeddings_model() -> HuggingFaceEmbeddings:
+def init_embeddings_model(gemini_api_key: str) -> GoogleGenerativeAIEmbeddings:
     """
-    Initializes the Hugging Face embeddings model.
+    Initializes the hosted Gemini embeddings model — no local model, no torch.
 
     Args:
-        None
+        gemini_api_key (str): The caller's Gemini API key.
 
     Returns:
-        HuggingFaceEmbeddings: The Hugging Face embeddings model.
+        GoogleGenerativeAIEmbeddings: The Gemini embeddings model.
 
     """
-    embedding_model = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    embedding_model = GoogleGenerativeAIEmbeddings(
+        model="models/text-embedding-004",
+        google_api_key=gemini_api_key,
+    )
 
     return embedding_model
 
@@ -118,18 +110,18 @@ def init_prompt() -> ChatPromptTemplate:
     return prompt, contextualize_q_prompt
 
 
-def init_RAG() -> tuple:
+def init_RAG(gemini_api_key: str) -> tuple:
     """
-    Initializes the models and templates.
+    Initializes the models and templates for a given user's Gemini key.
 
     Args:
-        None
+        gemini_api_key (str): The caller's Gemini API key.
 
     Returns:
         tuple: A tuple of the initialized models and prompt templates.
     """
-    llm = init_llm_model()
-    embedding_model = init_embeddings_model()
+    llm = init_llm_model(gemini_api_key)
+    embedding_model = init_embeddings_model(gemini_api_key)
     prompt, contextualize_q_prompt = init_prompt()
 
     return llm, embedding_model, prompt, contextualize_q_prompt
@@ -156,7 +148,7 @@ def split_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> l
 
 
 def create_vector_store(
-    uploaded_files: list[UploadedFile], embedding_model: HuggingFaceEmbeddings
+    uploaded_files: list[UploadedFile], embedding_model: GoogleGenerativeAIEmbeddings
 ) -> FAISS:
     """
     Initializes the vector store.
