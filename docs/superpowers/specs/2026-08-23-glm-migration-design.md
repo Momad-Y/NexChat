@@ -215,6 +215,49 @@ its transitive Google API tree (`google-ai-generativelanguage`,
 fully removed. Net effect is a further size reduction on top of the
 torch removal from the original migration, not just a lateral swap.
 
+**A real, verified constraint this section originally understated: the
+whole `langchain`/`langchain-community`/`langchain-core` family must be
+bumped together, not just the two new packages.** Simply adding
+`langchain-openai`/`langchain-huggingface` unpinned to the existing
+`langchain==0.3.13` pin resolves to a dependency conflict, traced by
+querying PyPI's package metadata directly (not guessed): the *only*
+`langchain-huggingface` releases that keep `sentence-transformers`/
+`transformers` behind an optional `extra == "full"` (rather than as a
+hard, always-installed dependency — the property §3.2 relies on for
+staying torch-free) are `>=0.2.0`, which require `langchain-core>=0.3.59`.
+But `langchain-core>=0.3.65` requires `langsmith>=0.3.45`, which
+conflicts with `langchain==0.3.13`'s own `langsmith<0.3` ceiling — a
+transitive three-package conflict, not something visible from any one
+package's changelog. The fix: newer `langchain`/`langchain-community`
+patches (still within the 0.3.x line, not the 1.x line that broke
+`langchain.text_splitter` during the original migration) dropped that
+`langsmith` ceiling entirely.
+
+**Verified exact pin set** (installed for real into a clean venv,
+confirmed `import torch` raises `ModuleNotFoundError`, and confirmed
+every import `RAG.py` currently uses — including
+`from langchain.text_splitter import RecursiveCharacterTextSplitter`,
+the exact line that broke under langchain 1.x during the original
+migration — still resolves correctly under these versions):
+
+```
+langchain==0.3.30
+langchain-community==0.3.31
+langchain-core==0.3.86
+langchain-text-splitters==0.3.11
+langchain-openai==0.3.35
+langchain-huggingface==0.3.1
+```
+
+This replaces `langchain==0.3.13`/`langchain-community==0.3.13`/
+`langchain-core==0.3.28`/`langchain-text-splitters==0.3.4` — the exact
+versions the original migration pinned — with later patches in the
+*same* 0.3.x major/minor line. This is a version bump, not a framework
+migration: none of `RAG.py`'s chain-construction calls
+(`create_history_aware_retriever`, `create_retrieval_chain`,
+`create_stuff_documents_chain`) change shape between these patches,
+confirmed by the clean import check above.
+
 ### 3.8 `HuggingFaceEndpointEmbeddings`'s `provider` parameter (added after red-team review)
 
 **No alternatives worth weighing — one option is simply correct.**
