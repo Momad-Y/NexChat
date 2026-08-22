@@ -6,7 +6,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import Runnable
 
 from utils import read_file
@@ -202,6 +202,17 @@ def create_qa_model(
     )
 
     return retrieval_qa
+
+
+def build_chat_history(messages: list) -> list:
+    """Converts the full session message list into ordered LangChain messages."""
+    history = []
+    for message in messages:
+        if message["role"] == "user":
+            history.append(HumanMessage(content=message["content"]))
+        elif message["role"] == "assistant":
+            history.append(AIMessage(content=message["content"]))
+    return history
 
 
 def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, str, str]:
