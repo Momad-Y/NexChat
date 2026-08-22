@@ -13,6 +13,7 @@ from cv import caption_image
 from nlp import summarize_text, init_RAG, create_vector_store, create_qa_model, qa
 from utils import read_file, custom_message_generator
 from paths import asset_path
+from credentials import render_key_sidebar, get_gemini_key, get_huggingface_key, missing_key_message
 
 random.seed(time.time())
 
@@ -53,19 +54,19 @@ task_name = st.sidebar.selectbox(
     ["Question Answering", "Text Summarization", "Image Captioning"],
 )
 
-# Display the repository link and authors information
-st.sidebar.markdown(
-    "## **[Repositoriy Link](https://gitlab.com/begad-tamim/ai-powered-chatbot.git)**"
-)
-st.sidebar.markdown("## Done By:")
-st.sidebar.markdown("##### **Begad M Tamim**")
-st.sidebar.markdown(
-    "##### [Github](https://github.com/begad-tamim) | [LinkedIn](https://www.linkedin.com/in/begad-tamim/) | [Email](mailto:begadtamim.a@gmail.com)"
-)
-st.sidebar.markdown("##### **Mohamed Y Abdelnasser**")
-st.sidebar.markdown(
-    "##### [Gitlab](https://gitlab.com/Momad-Y) | [LinkedIn](https://www.linkedin.com/in/mohamed-y-abdelnasser/) | [Email](mailto:Mohamed.Y.Abdelnasser@gmail.com)"
-)
+render_key_sidebar()
+
+with st.sidebar.expander("About"):
+    st.markdown("## **[Repository Link](https://github.com/Momad-Y/NexChat)**")
+    st.markdown("## Done By:")
+    st.markdown("##### **Begad M Tamim**")
+    st.markdown(
+        "##### [Github](https://github.com/begad-tamim) | [LinkedIn](https://www.linkedin.com/in/begad-tamim/) | [Email](mailto:begadtamim.a@gmail.com)"
+    )
+    st.markdown("##### **Mohamed Y Abdelnasser**")
+    st.markdown(
+        "##### [Github](https://github.com/Momad-Y) | [LinkedIn](https://www.linkedin.com/in/mohamed-y-abdelnasser/) | [Email](mailto:Mohamed.Y.Abdelnasser@gmail.com)"
+    )
 
 if task_name == "Image Captioning":
     uploaded_files = st.file_uploader(
