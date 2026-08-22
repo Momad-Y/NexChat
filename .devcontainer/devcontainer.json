@@ -31,7 +31,7 @@
             ]
         }
     },
-    "updateContentCommand": "sudo apt update && sudo apt upgrade -y && sudo apt install -y portaudio19-dev python3-pyaudio ffmpeg libsndfile1 && [ -f requirements.txt ] && pip3 install --user -r requirements.txt && echo '✅ Audio dependencies and requirements installed'",
+    "updateContentCommand": "sudo apt update && sudo apt upgrade -y && [ -f requirements.txt ] && pip3 install --user -r requirements.txt && echo '✅ Requirements installed'",
     "postAttachCommand": {
         "server": "cd src && streamlit run app.py --server.enableCORS false --server.enableXsrfProtection false"
     },
