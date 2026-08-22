@@ -139,3 +139,21 @@ def test_qa_yields_error_message_when_messages_are_malformed():
     chunks = list(qa("a question", FakeStreamingModel(), malformed_messages))
 
     assert chunks == ["An error occurred while generating the answer."]
+
+
+def test_is_qa_failure_true_for_error_message():
+    from nlp.RAG import is_qa_failure, QA_ERROR_MESSAGE
+
+    assert is_qa_failure(QA_ERROR_MESSAGE) is True
+
+
+def test_is_qa_failure_true_for_interrupted_response():
+    from nlp.RAG import is_qa_failure
+
+    assert is_qa_failure("Here is a partial answer\n\n⚠️ Response interrupted — please try again.") is True
+
+
+def test_is_qa_failure_false_for_real_answer():
+    from nlp.RAG import is_qa_failure
+
+    assert is_qa_failure("The answer to your question is 42.") is False

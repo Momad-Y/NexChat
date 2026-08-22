@@ -1,7 +1,3 @@
-import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
 import streamlit as st
 
 import random
@@ -9,7 +5,14 @@ import time
 
 from audio import get_audio_input, speak_text, has_processed, mark_processed
 from cv import caption_image
-from nlp import summarize_text, init_RAG, create_vector_store, create_qa_model, qa
+from nlp import (
+    summarize_text,
+    init_RAG,
+    create_vector_store,
+    create_qa_model,
+    qa,
+    is_qa_failure,
+)
 from nlp.vector_cache import compute_files_fingerprint, get_cached_vector_store, store_vector_store
 from utils import read_file, custom_message_generator
 from paths import asset_path
@@ -104,8 +107,12 @@ elif task_name == "Text Summarization":
 
         if text_input == "Audio":
             audio_blob = st.audio_input("Record text to summarize")
-            if audio_blob and not has_processed(st.session_state, audio_blob.getvalue()):
-                mark_processed(st.session_state, audio_blob.getvalue())
+            if audio_blob and not has_processed(
+                st.session_state, audio_blob.getvalue(), key="audio_summarization_last_hash"
+            ):
+                mark_processed(
+                    st.session_state, audio_blob.getvalue(), key="audio_summarization_last_hash"
+                )
                 recognized = get_audio_input(audio_blob.getvalue())
                 if recognized:
                     st.session_state.audio_input = recognized.capitalize().strip() + "."
@@ -118,7 +125,12 @@ elif task_name == "Text Summarization":
 
         elif text_input == "Text":
             if query := st.text_area("Enter a text for summarization:"):
-                st.session_state.text_summarization = st.write_stream(summarize_text(query, hf_key))
+                query_bytes = query.encode("utf-8")
+                if not has_processed(st.session_state, query_bytes, key="text_summarization_last_hash"):
+                    mark_processed(st.session_state, query_bytes, key="text_summarization_last_hash")
+                    st.session_state.text_summarization = st.write_stream(summarize_text(query, hf_key))
+                elif st.session_state.text_summarization:
+                    st.markdown(st.session_state.text_summarization)
             else:
                 st.write_stream(custom_message_generator("Please enter a text for summarization."))
 
@@ -131,7 +143,12 @@ elif task_name == "Text Summarization":
                 if text == "Unsupported file type.":
                     st.write_stream(custom_message_generator(text))
                 else:
-                    st.session_state.text_summarization = st.write_stream(summarize_text(text, hf_key))
+                    file_bytes = uploaded_files.getvalue()
+                    if not has_processed(st.session_state, file_bytes, key="file_summarization_last_hash"):
+                        mark_processed(st.session_state, file_bytes, key="file_summarization_last_hash")
+                        st.session_state.text_summarization = st.write_stream(summarize_text(text, hf_key))
+                    elif st.session_state.text_summarization:
+                        st.markdown(st.session_state.text_summarization)
             else:
                 st.write_stream(custom_message_generator("Please upload a file for summarization."))
 
@@ -160,7 +177,7 @@ else:
         vector_store = qa_model = None
 
         if uploaded_files:
-            fingerprint = compute_files_fingerprint(uploaded_files)
+            fingerprint = compute_files_fingerprint(uploaded_files, gemini_key)
             vector_store = get_cached_vector_store(st.session_state, fingerprint)
             if vector_store is None:
                 with st.spinner("Indexing files…"):
@@ -192,12 +209,12 @@ else:
                             custom_message_generator("Please upload a file to start the chat.")
                         )
 
-            if qa_model and response:
+            if qa_model and response and not is_qa_failure(response):
                 st.session_state.messages.append({"role": "user", "content": query})
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
             # Display a random balloon animation
-            if random.random() > 0.9 and response and qa_model:
+            if random.random() > 0.9 and response and qa_model and not is_qa_failure(response):
                 st.balloons()
 
         _, col1, col2, col3 = st.columns([1, 3, 3, 3])
@@ -210,8 +227,10 @@ else:
         # Add a widget for voice questions
         with col2:
             audio_blob = st.audio_input("Ask by voice")
-        if audio_blob and not has_processed(st.session_state, audio_blob.getvalue()):
-            mark_processed(st.session_state, audio_blob.getvalue())
+        if audio_blob and not has_processed(
+            st.session_state, audio_blob.getvalue(), key="audio_qa_last_hash"
+        ):
+            mark_processed(st.session_state, audio_blob.getvalue(), key="audio_qa_last_hash")
             recognized = get_audio_input(audio_blob.getvalue())
             if recognized:
                 recognized = recognized.capitalize()
@@ -224,7 +243,7 @@ else:
                             response = st.write_stream(
                                 custom_message_generator("Please upload a file to start the chat.")
                             )
-                if qa_model and response:
+                if qa_model and response and not is_qa_failure(response):
                     st.session_state.messages.append({"role": "user", "content": recognized})
                     st.session_state.messages.append({"role": "assistant", "content": response})
             else:

@@ -1,6 +1,8 @@
-from dotenv import dotenv_values, find_dotenv
+from dotenv import dotenv_values
 
 import streamlit as st
+
+from paths import REPO_ROOT
 
 GEMINI_KEY_NAME = "gemini_api_key"
 HUGGINGFACE_KEY_NAME = "huggingface_api_key"
@@ -8,10 +10,10 @@ HUGGINGFACE_KEY_NAME = "huggingface_api_key"
 
 def load_dotenv_values() -> dict:
     """Read a local .env if present; never raises if it's missing."""
-    path = find_dotenv(usecwd=True)
-    if not path:
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
         return {}
-    return dict(dotenv_values(path))
+    return dict(dotenv_values(env_path))
 
 
 def resolve_initial_key(existing: str | None, dotenv_value: str | None) -> str:
@@ -22,18 +24,18 @@ def resolve_initial_key(existing: str | None, dotenv_value: str | None) -> str:
     return ""
 
 
-def init_credential_state(session_state: dict, dotenv_values: dict | None = None) -> None:
+def init_credential_state(session_state: dict, env_values: dict | None = None) -> None:
     """Seed session_state key fields exactly once; safe to call every rerun."""
-    if dotenv_values is None:
-        dotenv_values = load_dotenv_values()
+    if env_values is None:
+        env_values = load_dotenv_values()
 
     if GEMINI_KEY_NAME not in session_state:
         session_state[GEMINI_KEY_NAME] = resolve_initial_key(
-            None, dotenv_values.get("GEMINI_API_KEY")
+            None, env_values.get("GEMINI_API_KEY")
         )
     if HUGGINGFACE_KEY_NAME not in session_state:
         session_state[HUGGINGFACE_KEY_NAME] = resolve_initial_key(
-            None, dotenv_values.get("HUGGINGFACE_API_KEY")
+            None, env_values.get("HUGGINGFACE_API_KEY")
         )
 
 

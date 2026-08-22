@@ -2,7 +2,6 @@ import PyPDF2
 import pandas as pd
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from typing import Generator
-import time
 
 
 def read_file(uploaded_file: UploadedFile) -> str:
@@ -70,7 +69,7 @@ def read_pdf(uploaded_file: UploadedFile) -> str:
     text = ""
     for page_num in range(len(reader.pages)):
         page = reader.pages[page_num]
-        text += page.extract_text() + "\n"
+        text += (page.extract_text() or "") + "\n"
     return text
 
 
@@ -166,4 +165,3 @@ def custom_message_generator(msg: str) -> Generator[str, str, str]:
 
     for word in words:
         yield word + " "
-        time.sleep(0.1)

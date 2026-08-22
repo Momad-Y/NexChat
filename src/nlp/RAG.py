@@ -14,6 +14,16 @@ from utils import read_file
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from typing import Generator
 
+QA_ERROR_MESSAGE = "An error occurred while generating the answer."
+QA_INTERRUPTED_SUFFIX = "\n\n⚠️ Response interrupted — please try again."
+
+
+def is_qa_failure(response: str) -> bool:
+    """True if a qa() output should be shown to the user but excluded from
+    chat history — a failed or truncated turn should not be replayed to the
+    model as if it were a genuine prior answer."""
+    return response == QA_ERROR_MESSAGE or QA_INTERRUPTED_SUFFIX in response
+
 
 def init_llm_model(gemini_api_key: str) -> ChatGoogleGenerativeAI:
     """
@@ -190,7 +200,7 @@ def create_qa_model(
 
     """
     history_aware_retriever = create_history_aware_retriever(
-        llm, vector_store.as_retriever(kwargs={"k": 6}), contextualize_q_prompt
+        llm, vector_store.as_retriever(search_kwargs={"k": 6}), contextualize_q_prompt
     )
 
     question_answer_chain = create_stuff_documents_chain(llm, prompt)
@@ -229,7 +239,7 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, None, No
         chat_history = build_chat_history(messages)
         stream = qa_model.stream({"chat_history": chat_history, "input": text})
     except Exception:
-        yield "An error occurred while generating the answer."
+        yield QA_ERROR_MESSAGE
         return
 
     yielded_any = False
@@ -240,8 +250,8 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, None, No
                 yielded_any = True
                 yield piece
     except Exception:
-        yield "\n\n⚠️ Response interrupted: could not reach Gemini."
+        yield QA_INTERRUPTED_SUFFIX
         return
 
     if not yielded_any:
-        yield "An error occurred while generating the answer."
+        yield QA_ERROR_MESSAGE

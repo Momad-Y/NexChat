@@ -62,3 +62,13 @@ def test_get_audio_input_returns_recognized_text(monkeypatch):
     result = audio_input_module.get_audio_input(b"RIFF....WAVEfmt ")
 
     assert result == "hello world"
+
+
+def test_has_processed_respects_distinct_keys():
+    from audio.audio_input import has_processed, mark_processed
+
+    session_state = {}
+    mark_processed(session_state, b"same-bytes", key="widget-a")
+
+    assert has_processed(session_state, b"same-bytes", key="widget-a") is True
+    assert has_processed(session_state, b"same-bytes", key="widget-b") is False

@@ -6,11 +6,11 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 
 ## Tasks
 
--   **Question Answering:** Powered by RAG using `gemini-flash-1.5` as the LLM, `BAAI/bge-small-en-v1.5` as the embedding model, and Faiss as the vector store.
+-   **Question Answering:** Powered by RAG using `gemini-2.5-flash` as the LLM, hosted Gemini embeddings (`models/text-embedding-004`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
 -   **Summarization:** Utilizes `facebook/bart-large-cnn` for document summarization.
 -   **Image Captioning:** Employs `blip-image-captioning-base` for generating captions from images.
--   **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio.
--   **Speech Recognition:** Implements Google's `speech_recognition` library for converting audio prompts into text.
+-   **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
+-   **Speech Recognition:** Recordings are captured in the browser with Streamlit's `st.audio_input` widget and transcribed with Google's `speech_recognition` library — no server-side audio device access.
 
 ## Methodology (Tech Stack)
 
@@ -18,7 +18,8 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 -   **Frameworks and Libraries:**
     -   Streamlit for the UI
     -   LangChain for retrieval-augmented generation
-    -   Transformers (Hugging Face) for NLP and multimodal tasks
+    -   Google Gemini (chat + hosted embeddings) via `langchain-google-genai`
+    -   HuggingFace Inference API (hosted) for summarization and image captioning
     -   Faiss for vector storage and retrieval
     -   gTTS for text-to-speech
     -   SpeechRecognition for audio-to-text processing
@@ -26,7 +27,7 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 ## Project File Structure
 
 ```
-ai-powered-chatbot/
+NexChat/
 ├── data/
 │   ├── test_data...
 ├── imgs/
@@ -43,12 +44,30 @@ ai-powered-chatbot/
 │   │   ├── __init__.py
 │   │   ├── RAG.py
 │   │   ├── summarization.py
+│   │   ├── vector_cache.py
 │   ├── app.py
+│   ├── credentials.py
+│   ├── paths.py
 │   ├── utils.py
-├── .env
+├── tests/
+│   ├── __init__.py
+│   ├── test_audio_input.py
+│   ├── test_audio_output.py
+│   ├── test_credentials.py
+│   ├── test_image_captioning.py
+│   ├── test_paths.py
+│   ├── test_rag.py
+│   ├── test_smoke.py
+│   ├── test_summarization.py
+│   ├── test_utils.py
+│   ├── test_vector_cache.py
+├── .env                  # optional, local development only
 ├── .gitignore
+├── conftest.py
+├── packages.txt          # empty — no system packages needed
 ├── README.md
 ├── requirements.txt
+├── requirements-dev.txt
 ```
 
 ## Setup and Usage
@@ -57,17 +76,26 @@ ai-powered-chatbot/
 
 1. Clone the repository:
     ```bash
-    git clone https://gitlab.com/begad-tamim/ai-powered-chatbot.git
-    cd ai-powered-chatbot
+    git clone https://github.com/Momad-Y/NexChat.git
+    cd NexChat
     ```
 2. Install Python dependencies:
     ```bash
     pip install -r requirements.txt
     ```
 
-### Configuration
+### Configuration (BYOK)
 
--   Add API keys for external services in a `.env` file:
+NexChat is bring-your-own-key. There is nothing to configure before running it:
+enter your **Gemini** and **HuggingFace** API keys directly in the app's sidebar at
+runtime. Keys live only in your Streamlit session, are never written to disk, and
+are never shared between users — so the same deployed instance can serve everyone
+with their own keys.
+
+-   **Optional, local development only:** a `.env` file at the repository root
+    auto-fills those sidebar fields so you don't have to retype your keys on every
+    restart. It is a convenience for your own machine — end users and deployed
+    instances do not need one.
     ```
     GEMINI_API_KEY=your_key_here
     HUGGINGFACE_API_KEY=your_key_here
@@ -79,7 +107,11 @@ ai-powered-chatbot/
     ```bash
     streamlit run src/app.py
     ```
-2. For audio support, ensure microphone and speaker permissions are enabled.
+2. Enter your Gemini and HuggingFace API keys in the sidebar.
+3. Audio is fully browser-based: recording goes through the browser's microphone via
+   Streamlit's `st.audio_input` widget (your browser will ask for microphone access)
+   and playback happens in the browser via `st.audio`. The server never touches an
+   audio device, so this works identically locally and when deployed.
 
 ## Demo Screenshots
 
@@ -97,7 +129,8 @@ ai-powered-chatbot/
 
 ## Used Resources
 
--   **Hugging Face Transformers Documentation:** [https://huggingface.co/docs/transformers](https://huggingface.co/docs/transformers)
+-   **Hugging Face Inference Providers Documentation:** [https://huggingface.co/docs/inference-providers](https://huggingface.co/docs/inference-providers)
+-   **Google Gemini API Documentation:** [https://ai.google.dev/gemini-api/docs](https://ai.google.dev/gemini-api/docs)
 -   **LangChain Documentation:** [https://docs.langchain.com](https://docs.langchain.com)
 -   **Streamlit Documentation:** [https://docs.streamlit.io](https://docs.streamlit.io)
 

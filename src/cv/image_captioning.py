@@ -12,7 +12,7 @@ def caption_image(uploaded_file: UploadedFile, huggingface_api_key: str) -> str:
     try:
         response = requests.post(API_URL, headers=headers, data=data, timeout=30)
         caption = response.json()[0]["generated_text"]
-    except Exception as e:
-        return f"An error occurred while generating the caption: {e}"
+    except Exception:
+        return "An error occurred while generating the caption."
 
     return caption.capitalize().strip() + "."

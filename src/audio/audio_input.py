@@ -27,11 +27,16 @@ def get_audio_input(audio_bytes: bytes) -> str | None:
         return None
 
 
-def has_processed(session_state: dict, audio_bytes: bytes) -> bool:
-    """Guards against re-processing the same sticky st.audio_input value on an unrelated rerun."""
-    current_hash = hashlib.sha256(audio_bytes).hexdigest()
-    return session_state.get(PROCESSED_HASH_KEY) == current_hash
+def has_processed(session_state: dict, content: bytes, key: str = PROCESSED_HASH_KEY) -> bool:
+    """Guards against re-processing the same sticky value on an unrelated rerun.
+
+    `key` lets independent call sites (different widgets, or non-audio content
+    like summarization text/files) use distinct session_state slots instead of
+    sharing one global "last processed" marker.
+    """
+    current_hash = hashlib.sha256(content).hexdigest()
+    return session_state.get(key) == current_hash
 
 
-def mark_processed(session_state: dict, audio_bytes: bytes) -> None:
-    session_state[PROCESSED_HASH_KEY] = hashlib.sha256(audio_bytes).hexdigest()
+def mark_processed(session_state: dict, content: bytes, key: str = PROCESSED_HASH_KEY) -> None:
+    session_state[key] = hashlib.sha256(content).hexdigest()
