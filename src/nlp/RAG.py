@@ -11,8 +11,6 @@ from langchain_core.runnables import Runnable
 
 from utils import read_file
 
-import time
-
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from typing import Generator
 
@@ -215,9 +213,9 @@ def build_chat_history(messages: list) -> list:
     return history
 
 
-def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, str, str]:
+def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, None, None]:
     """
-    Generates answers to questions based on the given text.
+    Streams the answer incrementally; always yields, never raises.
 
     Args:
         text (str): The text to generate answers from.
@@ -225,29 +223,26 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, str, str
         messages (list): A list of messages.
 
     Returns:
-        Generator[str, str, str]: A generator that yields the generated answers, or None if an error occurred.
+        Generator[str, None, None]: A generator that yields incremental answer chunks.
     """
-    chat_history = []
-
-    for message in messages:
-        if message["role"] == "user":
-            user_message = HumanMessage(content=message["content"])
-        elif message["role"] == "assistant":
-            ai_answer = message["content"]
+    chat_history = build_chat_history(messages)
 
     try:
-        chat_history.extend([user_message, ai_answer])
-    except Exception as e:
-        pass
+        stream = qa_model.stream({"chat_history": chat_history, "input": text})
+    except Exception:
+        yield "An error occurred while generating the answer."
+        return
 
+    yielded_any = False
     try:
-        response = qa_model.invoke({"chat_history": chat_history, "input": text})
-        answer = response["answer"].strip()
-    except Exception as e:
-        return None
+        for chunk in stream:
+            piece = chunk.get("answer")
+            if piece:
+                yielded_any = True
+                yield piece
+    except Exception:
+        yield "\n\n⚠️ Response interrupted: could not reach Gemini."
+        return
 
-    words = answer.split(" ")
-
-    for word in words:
-        yield word + " "
-        time.sleep(0.1)
+    if not yielded_any:
+        yield "An error occurred while generating the answer."

@@ -74,3 +74,54 @@ def test_build_chat_history_handles_empty_messages():
     from nlp.RAG import build_chat_history
 
     assert build_chat_history([]) == []
+
+
+def test_qa_streams_incremental_chunks():
+    from nlp.RAG import qa
+
+    class FakeStreamingModel:
+        def stream(self, inputs):
+            yield {"answer": "Hello"}
+            yield {"answer": " world"}
+
+    chunks = list(qa("a question", FakeStreamingModel(), []))
+
+    assert chunks == ["Hello", " world"]
+
+
+def test_qa_yields_error_message_when_stream_cannot_start():
+    from nlp.RAG import qa
+
+    class FakeBrokenModel:
+        def stream(self, inputs):
+            raise RuntimeError("invalid key")
+
+    chunks = list(qa("a question", FakeBrokenModel(), []))
+
+    assert chunks == ["An error occurred while generating the answer."]
+
+
+def test_qa_yields_interruption_message_mid_stream():
+    from nlp.RAG import qa
+
+    class FakeInterruptedModel:
+        def stream(self, inputs):
+            yield {"answer": "Partial"}
+            raise RuntimeError("connection dropped")
+
+    chunks = list(qa("a question", FakeInterruptedModel(), []))
+
+    assert chunks[0] == "Partial"
+    assert "interrupted" in chunks[-1].lower()
+
+
+def test_qa_yields_error_message_when_stream_produces_nothing():
+    from nlp.RAG import qa
+
+    class FakeEmptyModel:
+        def stream(self, inputs):
+            return iter([])
+
+    chunks = list(qa("a question", FakeEmptyModel(), []))
+
+    assert chunks == ["An error occurred while generating the answer."]
