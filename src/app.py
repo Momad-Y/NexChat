@@ -190,7 +190,7 @@ else:
                         vector_store = create_vector_store(uploaded_files, embedding_model)
                         store_vector_store(st.session_state, fingerprint, vector_store)
                     except Exception:
-                        st.error("Couldn't index the uploaded files — check your HuggingFace key and try again.")
+                        st.error("Couldn't index the uploaded files — the file may be unreadable, or check your HuggingFace key and try again.")
                         vector_store = None
             else:
                 st.caption("Using cached index for this file set.")

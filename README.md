@@ -19,7 +19,7 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
     -   Streamlit for the UI
     -   LangChain for retrieval-augmented generation
     -   GLM-4.7-Flash (Z.ai, OpenAI-compatible) for chat via `langchain-openai`
-    -   HuggingFace Inference API (hosted) for embeddings, summarization, and image captioning
+    -   HuggingFace Inference API (hosted) for embeddings (via `langchain-huggingface`), summarization, and image captioning
     -   Faiss for vector storage and retrieval
     -   gTTS for text-to-speech
     -   SpeechRecognition for audio-to-text processing

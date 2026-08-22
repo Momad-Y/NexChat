@@ -161,3 +161,54 @@ def test_is_qa_failure_false_for_real_answer():
     from nlp.RAG import is_qa_failure
 
     assert is_qa_failure("The answer to your question is 42.") is False
+
+
+def test_init_embeddings_model_sets_bounded_timeout(monkeypatch):
+    from nlp.RAG import init_embeddings_model
+
+    captured_client_kwargs = []
+
+    class FakeInferenceClient:
+        def __init__(self, **kwargs):
+            captured_client_kwargs.append(kwargs)
+
+    monkeypatch.setattr("nlp.RAG.InferenceClient", FakeInferenceClient)
+
+    init_embeddings_model("test-hf-key")
+
+    assert len(captured_client_kwargs) == 1
+    assert captured_client_kwargs[0]["timeout"] == 60
+    assert captured_client_kwargs[0]["token"] == "test-hf-key"
+
+
+def test_create_vector_store_batches_embedding_calls(monkeypatch):
+    from nlp import RAG
+
+    fake_chunks = [f"chunk-{i}" for i in range(120)]
+
+    class FakeUploadedFile:
+        pass
+
+    monkeypatch.setattr(RAG, "read_file", lambda f: "irrelevant")
+    monkeypatch.setattr(RAG, "split_text", lambda text: fake_chunks)
+
+    calls = {"from_texts": [], "add_texts": []}
+
+    class FakeVectorStore:
+        def add_texts(self, texts):
+            calls["add_texts"].append(list(texts))
+
+    class FakeFAISS:
+        @staticmethod
+        def from_texts(texts, embedding_model):
+            calls["from_texts"].append(list(texts))
+            return FakeVectorStore()
+
+    monkeypatch.setattr(RAG, "FAISS", FakeFAISS)
+
+    RAG.create_vector_store([FakeUploadedFile()], embedding_model=object())
+
+    assert len(calls["from_texts"]) == 1
+    assert len(calls["from_texts"][0]) == RAG.EMBEDDING_BATCH_SIZE
+    total_added = sum(len(batch) for batch in calls["add_texts"])
+    assert total_added == len(fake_chunks) - RAG.EMBEDDING_BATCH_SIZE

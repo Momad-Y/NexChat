@@ -5,6 +5,7 @@ from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
+from huggingface_hub import InferenceClient
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import Runnable
@@ -60,12 +61,24 @@ def init_embeddings_model(huggingface_api_key: str) -> HuggingFaceEndpointEmbedd
     Returns:
         HuggingFaceEndpointEmbeddings: The hosted embeddings model.
     """
-    return HuggingFaceEndpointEmbeddings(
+    embeddings = HuggingFaceEndpointEmbeddings(
         model=EMBEDDING_MODEL,
         provider="hf-inference",
         task="feature-extraction",
         huggingfacehub_api_token=huggingface_api_key,
     )
+    # HuggingFaceEndpointEmbeddings has no timeout field of its own; the
+    # InferenceClient it builds internally defaults to unbounded. Rebuild it
+    # explicitly with a bounded timeout — same rationale as init_llm_model's
+    # timeout=60, applied here too since this call runs inside the same kind
+    # of blocking Streamlit UI context (st.spinner during indexing).
+    embeddings.client = InferenceClient(
+        model=EMBEDDING_MODEL,
+        token=huggingface_api_key,
+        provider="hf-inference",
+        timeout=60,
+    )
+    return embeddings
 
 
 def init_prompt() -> ChatPromptTemplate:
@@ -158,11 +171,16 @@ def split_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> l
     return split_texts
 
 
+EMBEDDING_BATCH_SIZE = 50
+
+
 def create_vector_store(
     uploaded_files: list[UploadedFile], embedding_model: HuggingFaceEndpointEmbeddings
 ) -> FAISS:
     """
-    Initializes the vector store.
+    Initializes the vector store. Embeds in bounded batches rather than one
+    unbatched call — a single request containing every chunk from a large
+    document risked a request-size rejection against the hosted HF endpoint.
 
     Args:
         texts (list): A list of UploadedFiles.
@@ -178,7 +196,13 @@ def create_vector_store(
         split_texts = split_text(texts)
         all_split_texts.extend(split_texts)
 
-    vector_store = FAISS.from_texts(all_split_texts, embedding_model)
+    first_batch = all_split_texts[:EMBEDDING_BATCH_SIZE]
+    remaining_texts = all_split_texts[EMBEDDING_BATCH_SIZE:]
+
+    vector_store = FAISS.from_texts(first_batch, embedding_model)
+
+    for i in range(0, len(remaining_texts), EMBEDDING_BATCH_SIZE):
+        vector_store.add_texts(remaining_texts[i : i + EMBEDDING_BATCH_SIZE])
 
     return vector_store
 
@@ -194,7 +218,7 @@ def create_qa_model(
 
     Args:
         vector_store (FAISS): The vector store.
-        llm (ChatGoogleGenerativeAI): The language model.
+        llm (ChatOpenAI): The language model.
         prompt (ChatPromptTemplate): The prompt template.
         contextualize_q_prompt (ChatPromptTemplate): The contextualize question prompt template.
 
