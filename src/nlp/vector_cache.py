@@ -4,7 +4,7 @@ FINGERPRINT_KEY = "vector_store_fingerprint"
 STORE_KEY = "vector_store_cache"
 
 
-def compute_files_fingerprint(uploaded_files: list, gemini_api_key: str) -> str:
+def compute_files_fingerprint(uploaded_files: list, huggingface_api_key: str) -> str:
     """Stable fingerprint of a set of uploaded files AND the embedding key
     used to index them. Including the key is required so a mid-session key
     change invalidates the cache — otherwise retrieval would silently keep
@@ -17,7 +17,7 @@ def compute_files_fingerprint(uploaded_files: list, gemini_api_key: str) -> str:
         hasher.update(name_bytes)
         hasher.update(len(content_bytes).to_bytes(8, "big"))
         hasher.update(content_bytes)
-    key_bytes = gemini_api_key.encode("utf-8")
+    key_bytes = huggingface_api_key.encode("utf-8")
     hasher.update(len(key_bytes).to_bytes(8, "big"))
     hasher.update(key_bytes)
     return hasher.hexdigest()

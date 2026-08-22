@@ -13,24 +13,24 @@ class FakeUploadedFile:
 def test_fingerprint_is_stable_for_identical_files():
     files_a = [FakeUploadedFile("doc.pdf", b"hello world")]
     files_b = [FakeUploadedFile("doc.pdf", b"hello world")]
-    assert compute_files_fingerprint(files_a, "test-gemini-key") == compute_files_fingerprint(
-        files_b, "test-gemini-key"
+    assert compute_files_fingerprint(files_a, "test-huggingface-key") == compute_files_fingerprint(
+        files_b, "test-huggingface-key"
     )
 
 
 def test_fingerprint_changes_when_content_changes():
     files_a = [FakeUploadedFile("doc.pdf", b"hello world")]
     files_b = [FakeUploadedFile("doc.pdf", b"different content")]
-    assert compute_files_fingerprint(files_a, "test-gemini-key") != compute_files_fingerprint(
-        files_b, "test-gemini-key"
+    assert compute_files_fingerprint(files_a, "test-huggingface-key") != compute_files_fingerprint(
+        files_b, "test-huggingface-key"
     )
 
 
 def test_fingerprint_changes_when_file_set_changes():
     one_file = [FakeUploadedFile("doc.pdf", b"hello world")]
     two_files = one_file + [FakeUploadedFile("doc2.pdf", b"more")]
-    assert compute_files_fingerprint(one_file, "test-gemini-key") != compute_files_fingerprint(
-        two_files, "test-gemini-key"
+    assert compute_files_fingerprint(one_file, "test-huggingface-key") != compute_files_fingerprint(
+        two_files, "test-huggingface-key"
     )
 
 
@@ -67,6 +67,6 @@ def test_cache_miss_when_fingerprint_differs():
 def test_fingerprint_distinguishes_ambiguous_name_content_boundary():
     files_a = [FakeUploadedFile("ab", b"cd")]
     files_b = [FakeUploadedFile("a", b"bcd")]
-    assert compute_files_fingerprint(files_a, "test-gemini-key") != compute_files_fingerprint(
-        files_b, "test-gemini-key"
+    assert compute_files_fingerprint(files_a, "test-huggingface-key") != compute_files_fingerprint(
+        files_b, "test-huggingface-key"
     )
