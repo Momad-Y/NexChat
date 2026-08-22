@@ -6,7 +6,7 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 
 ## Tasks
 
--   **Question Answering:** Powered by RAG using `gemini-2.5-flash` as the LLM, hosted Gemini embeddings (`models/text-embedding-004`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
+-   **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
 -   **Summarization:** Utilizes `facebook/bart-large-cnn` for document summarization.
 -   **Image Captioning:** Employs `blip-image-captioning-base` for generating captions from images.
 -   **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
@@ -18,8 +18,8 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 -   **Frameworks and Libraries:**
     -   Streamlit for the UI
     -   LangChain for retrieval-augmented generation
-    -   Google Gemini (chat + hosted embeddings) via `langchain-google-genai`
-    -   HuggingFace Inference API (hosted) for summarization and image captioning
+    -   GLM-4.7-Flash (Z.ai, OpenAI-compatible) for chat via `langchain-openai`
+    -   HuggingFace Inference API (hosted) for embeddings, summarization, and image captioning
     -   Faiss for vector storage and retrieval
     -   gTTS for text-to-speech
     -   SpeechRecognition for audio-to-text processing
@@ -87,7 +87,7 @@ NexChat/
 ### Configuration (BYOK)
 
 NexChat is bring-your-own-key. There is nothing to configure before running it:
-enter your **Gemini** and **HuggingFace** API keys directly in the app's sidebar at
+enter your **GLM (Z.ai)** and **HuggingFace** API keys directly in the app's sidebar at
 runtime. Keys live only in your Streamlit session, are never written to disk, and
 are never shared between users — so the same deployed instance can serve everyone
 with their own keys.
@@ -97,7 +97,7 @@ with their own keys.
     restart. It is a convenience for your own machine — end users and deployed
     instances do not need one.
     ```
-    GEMINI_API_KEY=your_key_here
+    GLM_API_KEY=your_key_here
     HUGGINGFACE_API_KEY=your_key_here
     ```
 
@@ -107,7 +107,7 @@ with their own keys.
     ```bash
     streamlit run src/app.py
     ```
-2. Enter your Gemini and HuggingFace API keys in the sidebar.
+2. Enter your GLM (Z.ai) and HuggingFace API keys in the sidebar.
 3. Audio is fully browser-based: recording goes through the browser's microphone via
    Streamlit's `st.audio_input` widget (your browser will ask for microphone access)
    and playback happens in the browser via `st.audio`. The server never touches an
@@ -130,7 +130,7 @@ with their own keys.
 ## Used Resources
 
 -   **Hugging Face Inference Providers Documentation:** [https://huggingface.co/docs/inference-providers](https://huggingface.co/docs/inference-providers)
--   **Google Gemini API Documentation:** [https://ai.google.dev/gemini-api/docs](https://ai.google.dev/gemini-api/docs)
+-   **Z.ai GLM API Documentation:** [https://docs.z.ai/guides/overview/quick-start](https://docs.z.ai/guides/overview/quick-start)
 -   **LangChain Documentation:** [https://docs.langchain.com](https://docs.langchain.com)
 -   **Streamlit Documentation:** [https://docs.streamlit.io](https://docs.streamlit.io)
 
