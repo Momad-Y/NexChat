@@ -45,3 +45,9 @@ def test_cache_miss_when_fingerprint_differs():
     store_vector_store(session_state, "fingerprint-a", object())
 
     assert get_cached_vector_store(session_state, "fingerprint-b") is None
+
+
+def test_fingerprint_distinguishes_ambiguous_name_content_boundary():
+    files_a = [FakeUploadedFile("ab", b"cd")]
+    files_b = [FakeUploadedFile("a", b"bcd")]
+    assert compute_files_fingerprint(files_a) != compute_files_fingerprint(files_b)

@@ -8,8 +8,12 @@ def compute_files_fingerprint(uploaded_files: list) -> str:
     """Stable fingerprint of a set of uploaded files by name + content hash."""
     hasher = hashlib.sha256()
     for uploaded_file in uploaded_files:
-        hasher.update(uploaded_file.name.encode("utf-8"))
-        hasher.update(uploaded_file.getvalue())
+        name_bytes = uploaded_file.name.encode("utf-8")
+        content_bytes = uploaded_file.getvalue()
+        hasher.update(len(name_bytes).to_bytes(8, "big"))
+        hasher.update(name_bytes)
+        hasher.update(len(content_bytes).to_bytes(8, "big"))
+        hasher.update(content_bytes)
     return hasher.hexdigest()
 
 
