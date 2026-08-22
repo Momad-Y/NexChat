@@ -94,7 +94,17 @@ which this design does not use). Against: relies on the class
 constructing the correct, currently-live HF router URL internally —
 the same kind of endpoint-drift risk that already hit the summarization/
 captioning HF integration once (spec 2026-08-22, §4.3) and needs the
-same live-key verification before shipping.
+same live-key verification before shipping. A second, distinct risk
+found by red-team review and confirmed by reading `huggingface_hub`'s
+actual source (`get_provider_helper` in
+`huggingface_hub/inference/_providers/__init__.py`): leaving `provider`
+unset resolves to `provider="auto"`, which triggers a *live network
+call* to resolve which marketplace provider currently serves the model
+for `feature-extraction` — a failure mode independent of endpoint drift
+(the model could be unregistered with every auto-eligible provider even
+if the classic `hf-inference` provider itself serves it fine). See
+§3.8 — this is fixed by pinning `provider="hf-inference"` explicitly,
+not left as residual risk.
 
 **Option 2 — hand-rolled `requests.post` to HF's feature-extraction
 endpoint**, wrapped in a small custom class implementing LangChain's
@@ -205,6 +215,69 @@ its transitive Google API tree (`google-ai-generativelanguage`,
 fully removed. Net effect is a further size reduction on top of the
 torch removal from the original migration, not just a lateral swap.
 
+### 3.8 `HuggingFaceEndpointEmbeddings`'s `provider` parameter (added after red-team review)
+
+**No alternatives worth weighing — one option is simply correct.**
+Verified directly by reading `huggingface_hub`'s source: leaving
+`provider` unset does not silently default to the classic
+`hf-inference` endpoint — it resolves to `provider="auto"`, which
+fetches the current Inference Providers marketplace mapping for the
+model over the network before the embedding call even happens. If
+`BAAI/bge-small-en-v1.5` isn't registered with any auto-eligible
+provider (plausible — many pre-marketplace sentence-transformers models
+were dropped when HF moved off the legacy free API), this fails even
+though the classic `hf-inference` provider explicitly still lists
+`feature-extraction` as a supported task. Passing `provider="hf-inference"`
+explicitly in `init_embeddings_model` collapses this second failure
+surface into the one endpoint-drift risk §3.2/§5 already plan to
+verify with a live key, instead of stacking two independent unverified
+risks.
+
+### 3.9 `create_vector_store` error handling in `app.py` (added after red-team review)
+
+**Option 1 — leave unwrapped, as it is today.** For: no code change,
+matches current behavior. Against: an embeddings failure (auth, the
+`provider="auto"` marketplace-resolution failure mode this migration
+was going to introduce before §3.8's fix, or a genuine network error)
+surfaces as a raw Streamlit traceback — the one place in the QA flow
+without the friendly-error-message discipline `qa()`, `summarize_text`,
+and `caption_image` all already have. This gap is pre-existing (the
+same was true for Gemini embeddings), but this migration's changes
+increase the odds of hitting it by introducing a new provider-resolution
+call in the chain.
+
+**Option 2 — wrap the call and show a friendly message on failure.**
+For: closes the one inconsistency in this app's otherwise-universal
+"never crash, always show a clear message" pattern, at the cost of a
+few lines around an existing call site. Against: none meaningful — this
+is a small, self-contained, low-risk addition directly in the file this
+migration already touches.
+
+**Verdict: Option 2.** Cheap, consistent with the app's established
+error-handling philosophy everywhere else, and made more load-bearing
+by this migration's own new failure surface — not scope creep, since
+it's the same file and the same call site the migration is already
+rewriting.
+
+### 3.10 Simultaneous vs. sequential missing-key messaging (added after red-team review)
+
+**Option 1 — sequential (`if not glm_key: ... elif not hf_key: ...`),
+as originally drafted.** For: minimal code, matches the single-message
+pattern every other task branch already uses. Against: this is the
+*first* feature needing two keys at once — a first-time user with
+neither key fills in GLM, reruns, sees "HuggingFace key missing" only
+then. A whack-a-mole onboarding flow that didn't exist before this
+migration.
+
+**Option 2 — show every missing key at once.** For: a user with zero
+keys learns everything they need in one screen instead of two round
+trips; costs nothing beyond replacing `elif` with a second `if`.
+Against: none meaningful.
+
+**Verdict: Option 2.** Free to fix, and directly serves the migration's
+own "make onboarding easy" spirit — no reason to ship the worse of two
+equally-cheap options.
+
 ## 4. Architecture
 
 ### 4.1 `src/nlp/RAG.py`
@@ -226,6 +299,7 @@ def init_llm_model(glm_api_key: str) -> ChatOpenAI:
         base_url=GLM_BASE_URL,
         temperature=0.1,
         max_retries=2,
+        timeout=60,
     )
 
 
@@ -233,6 +307,7 @@ def init_embeddings_model(huggingface_api_key: str) -> HuggingFaceEndpointEmbedd
     """Initializes hosted HuggingFace embeddings — no local model, no torch."""
     return HuggingFaceEndpointEmbeddings(
         model=EMBEDDING_MODEL,
+        provider="hf-inference",
         task="feature-extraction",
         huggingfacehub_api_token=huggingface_api_key,
     )
@@ -251,9 +326,23 @@ Both constructors above are verified directly against the actual
 installed package signatures (not just documentation) — `ChatOpenAI`'s
 `api_key`/`base_url` are confirmed pydantic aliases for
 `openai_api_key`/`openai_api_base`, and `HuggingFaceEndpointEmbeddings`'
-`huggingfacehub_api_token`/`task` are confirmed real fields, with
-`task` defaulting to `"feature-extraction"` already (set explicitly
-above anyway, for clarity against future default changes).
+`huggingfacehub_api_token`/`task`/`provider` are confirmed real fields,
+with `task` defaulting to `"feature-extraction"` already (set explicitly
+above anyway, for clarity against future default changes) but `provider`
+defaulting to `None` — which, per §3.8, must be overridden to
+`"hf-inference"` explicitly, since leaving it `None` triggers a live
+"auto" marketplace-resolution call with its own independent failure
+mode. `timeout=60` on `ChatOpenAI` (found by red-team review, not present in
+the original Gemini code) is a deliberate hardening addition: `timeout`
+defaults to `None`, which `langchain-openai` passes straight through to
+`httpx.Client(timeout=None)` — genuinely unbounded, not a sane library
+default — and GLM's free tier publishes no fixed rate limits (Z.ai's own
+docs describe throttling as dynamic/concurrency-based rather than a
+documented RPM/TPM number), making an unbounded wait against a
+possibly-throttled free endpoint a real risk of hanging a Streamlit
+worker with only the spinner as feedback. This was already true of the
+original Gemini code (which also passed `timeout=None`) but is worth
+fixing now while this function is already being rewritten.
 
 No other function in `RAG.py` changes — `create_vector_store`,
 `create_qa_model`, `build_chat_history`, `qa()`, and `init_prompt` are
@@ -287,8 +376,8 @@ unchanged (§3.6).
 The Question Answering branch currently gates on one key
 (`get_gemini_key`) and calls `init_RAG(gemini_key)` and
 `compute_files_fingerprint(uploaded_files, gemini_key)`. It now gates
-on **both** keys being present, with a message naming whichever is
-actually missing:
+on **both** keys being present, showing every missing key at once
+(§3.10) rather than one at a time:
 
 ```python
 glm_key = get_glm_key(st.session_state)
@@ -296,19 +385,31 @@ hf_key = get_huggingface_key(st.session_state)
 
 if not glm_key:
     st.info(missing_key_message("Question Answering", "GLM"))
-elif not hf_key:
+if not hf_key:
     st.info(missing_key_message("Question Answering", "HuggingFace"))
-else:
+
+if glm_key and hf_key:
     llm, embedding_model, prompt_template, contextualize_q_prompt = init_RAG(glm_key, hf_key)
     ...
     fingerprint = compute_files_fingerprint(uploaded_files, hf_key)
+    vector_store = get_cached_vector_store(st.session_state, fingerprint)
+    if vector_store is None:
+        try:
+            vector_store = create_vector_store(uploaded_files, embedding_model)
+            store_vector_store(st.session_state, fingerprint, vector_store)
+        except Exception:
+            st.error("Couldn't index the uploaded files — check your HuggingFace key and try again.")
+            vector_store = None
     ...
 ```
 
 `missing_key_message`'s existing signature (`task_label, provider_label
 -> str`) needs no change — it already takes an arbitrary provider label
 string, so `"GLM"` and `"HuggingFace"` both work with zero changes to
-that function.
+that function. The `create_vector_store` wrapping (§3.9) is new — the
+current code calls it unguarded; on failure `vector_store` stays `None`
+so the existing "upload a file to start" downstream messaging naturally
+applies instead of a crash.
 
 ## 5. Testing Plan
 
@@ -332,12 +433,39 @@ that function.
   embeddings, fall back to `sentence-transformers/all-MiniLM-L6-v2`
   (§3.3).
 - **Missing-key behavior**: app boots with zero keys, QA branch shows
-  the GLM-missing message; entering only a GLM key (no HF key) shows
-  the HF-missing message, not a crash — this is new behavior beyond the
-  original single-key gate and needs explicit coverage.
+  **both** missing-key messages at once (§3.10) — not a crash, not just
+  the first one; entering only one key leaves exactly the other
+  message showing. This is new behavior beyond the original single-key
+  gate and needs explicit coverage.
+- **`create_vector_store` failure handling** (§3.9): a monkeypatched
+  `create_vector_store` that raises must result in a friendly
+  `st.error(...)` message and `vector_store` staying `None`, not an
+  uncaught exception reaching the user.
+- **`init_embeddings_model` passes `provider="hf-inference"`** (§3.8):
+  a `monkeypatch`-based test asserting the constructor call includes
+  `provider="hf-inference"`, not left unset — this is the one-line fix
+  the red-team review's highest-leverage finding depends on, so it gets
+  its own explicit assertion rather than relying on the live-key check
+  alone to catch a regression.
 - **Regression**: full existing test suite (48 tests as of the prior
   migration) must continue passing with only the renamed/retyped
   fixtures updated — no unrelated behavior change.
+
+**Known, documented risk not mitigated by new mechanism:** Z.ai
+publishes no fixed rate-limit numbers for GLM-4.7-Flash's free tier —
+its docs describe throttling as dynamic/concurrency-based rather than a
+stated RPM/TPM quota, and third-party aggregators report inconsistent
+daily-request-cap figures. A throttled or rate-limited response during
+`qa()`'s two-call pattern (query reformulation + answer generation, both
+inside one `qa_model.stream()` invocation) is caught by the same
+generic `except Exception` that already handles any other mid-stream
+failure (`RAG.py`'s `qa()`, spec 2026-08-22 §4.5) — the user sees the
+existing interrupted-response message, not a specific "you're being
+rate-limited" explanation. Building rate-limit-specific messaging is
+out of scope for this migration (no documented limit to design around,
+and the existing generic error handling already prevents a crash) —
+noted here as an accepted, pre-existing-pattern risk, not a defect to
+fix.
 
 ## 6. Explicitly Out of Scope
 
