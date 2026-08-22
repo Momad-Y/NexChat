@@ -225,9 +225,8 @@ def qa(text: str, qa_model: Runnable, messages: list) -> Generator[str, None, No
     Returns:
         Generator[str, None, None]: A generator that yields incremental answer chunks.
     """
-    chat_history = build_chat_history(messages)
-
     try:
+        chat_history = build_chat_history(messages)
         stream = qa_model.stream({"chat_history": chat_history, "input": text})
     except Exception:
         yield "An error occurred while generating the answer."

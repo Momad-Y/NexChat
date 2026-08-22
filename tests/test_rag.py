@@ -125,3 +125,17 @@ def test_qa_yields_error_message_when_stream_produces_nothing():
     chunks = list(qa("a question", FakeEmptyModel(), []))
 
     assert chunks == ["An error occurred while generating the answer."]
+
+
+def test_qa_yields_error_message_when_messages_are_malformed():
+    from nlp.RAG import qa
+
+    class FakeStreamingModel:
+        def stream(self, inputs):
+            yield {"answer": "should not reach here"}
+
+    malformed_messages = [{"role": "user"}]  # missing "content" key
+
+    chunks = list(qa("a question", FakeStreamingModel(), malformed_messages))
+
+    assert chunks == ["An error occurred while generating the answer."]
