@@ -5,20 +5,17 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import streamlit as st
 
 import random
-import itertools
 import time
 
-from audio import get_audio_input, speak_text
+from audio import get_audio_input, speak_text, has_processed, mark_processed
 from cv import caption_image
 from nlp import summarize_text, init_RAG, create_vector_store, create_qa_model, qa
+from nlp.vector_cache import compute_files_fingerprint, get_cached_vector_store, store_vector_store
 from utils import read_file, custom_message_generator
 from paths import asset_path
 from credentials import render_key_sidebar, get_gemini_key, get_huggingface_key, missing_key_message
 
 random.seed(time.time())
-
-# Initialize the RAG model
-llm, embedding_model, prompt_template, contextualize_q_prompt = init_RAG()
 
 # Initialize session states
 if "messages" not in st.session_state:
@@ -29,7 +26,7 @@ if "image_caption" not in st.session_state:
 
 if "text_summarization" not in st.session_state:
     st.session_state.text_summarization = ""
-    
+
 if "audio_input" not in st.session_state:
     st.session_state.audio_input = ""
 
@@ -69,12 +66,15 @@ with st.sidebar.expander("About"):
     )
 
 if task_name == "Image Captioning":
+    hf_key = get_huggingface_key(st.session_state)
     uploaded_files = st.file_uploader(
         "Upload a file", type=["jpg", "jpeg", "png"], accept_multiple_files=False
     )
     st.divider()
 
-    if uploaded_files:
+    if not hf_key:
+        st.info(missing_key_message("Image Captioning", "HuggingFace"))
+    elif uploaded_files:
         # Split the page into two columns
         col1, col2 = st.columns(2)
         _, col21, col22 = col2.columns([1, 6, 6])
@@ -84,192 +84,162 @@ if task_name == "Image Captioning":
 
         # Display the caption button in the second column
         if col21.button("Caption Image"):
-            response = caption_image(uploaded_files)
-            st.session_state.image_caption = response
+            st.session_state.image_caption = caption_image(uploaded_files, hf_key)
+        if st.session_state.image_caption:
             col2.write(f"**Caption:** {st.session_state.image_caption}")
 
         if col22.button("Audio Output", key="audio_image_caption"):
-            col2.write(f"**Caption:** {st.session_state.image_caption}")
-            speak_text(st.session_state.image_caption)
-
+            audio_bytes = speak_text(st.session_state.image_caption)
+            if audio_bytes:
+                col2.audio(audio_bytes, format="audio/mp3", autoplay=True)
     else:
         st.write("Please upload an image file for captioning.")
 
 elif task_name == "Text Summarization":
-    text_input = st.radio("Select the input type:", ["Text", "File", "Audio"])
-    response = ""
-
-    if text_input == "Audio":
-        if st.button("Start Recording", use_container_width=True):
-            audio_input = get_audio_input(duration=30)
-            if audio_input:
-                st.session_state.audio_input = audio_input.capitalize().strip() + "."
-                generator = summarize_text(audio_input)
-                generator, generator2 = itertools.tee(generator)
-                for chunk in generator2:
-                    response += chunk
-                st.session_state.text_summarization = response
-            else:
-                generator = custom_message_generator("An error occurred while recording the audio.")
-            
-            st.write(f"**You (audio):** {st.session_state.audio_input}")
-
-        else:
-            generator = custom_message_generator("Click the button to start recording.")
-
-        st.write_stream(generator)
-        
-        if st.button("Audio Output", key="audio_text_summarization"):
-            st.write(f"**You (audio):** {st.session_state.audio_input}")
-            st.write(st.session_state.text_summarization)
-            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
-            
-    elif text_input == "Text":
-        if query := st.text_area("Enter a text for summarization:"):
-            generator = summarize_text(query)
-            generator, generator2 = itertools.tee(generator)
-            for chunk in generator2:
-                response += chunk
-            st.session_state.text_summarization = response
-        else:
-            generator = custom_message_generator("Please enter a text for summarization.")
-
-        st.write_stream(generator)
-        
-        if st.button("Audio Output", key="audio_text_summarization"):
-            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
-
+    hf_key = get_huggingface_key(st.session_state)
+    if not hf_key:
+        st.info(missing_key_message("Text Summarization", "HuggingFace"))
     else:
-        uploaded_files = st.file_uploader(
-            "Upload a file",
-            type=["pdf", "csv", "txt", "md"],
-            accept_multiple_files=False,
-        )
-        if uploaded_files:
-            text = read_file(uploaded_files)
-            if text == "Unsupported file type.":
-                generator = custom_message_generator(text)
-            generator = summarize_text(text)
-            generator, generator2 = itertools.tee(generator)
-            for chunk in generator2:
-                response += chunk
-            st.session_state.text_summarization = response
-        else:
-            generator = custom_message_generator("Please upload a file for summarization.")
+        text_input = st.radio("Select the input type:", ["Text", "File", "Audio"])
 
-        st.write_stream(generator)
-        
+        if text_input == "Audio":
+            audio_blob = st.audio_input("Record text to summarize")
+            if audio_blob and not has_processed(st.session_state, audio_blob.getvalue()):
+                mark_processed(st.session_state, audio_blob.getvalue())
+                recognized = get_audio_input(audio_blob.getvalue())
+                if recognized:
+                    st.session_state.audio_input = recognized.capitalize().strip() + "."
+                    st.write(f"**You (audio):** {st.session_state.audio_input}")
+                    st.session_state.text_summarization = st.write_stream(
+                        summarize_text(recognized, hf_key)
+                    )
+                else:
+                    st.error("Couldn't understand that recording — please try again.")
+
+        elif text_input == "Text":
+            if query := st.text_area("Enter a text for summarization:"):
+                st.session_state.text_summarization = st.write_stream(summarize_text(query, hf_key))
+            else:
+                st.write_stream(custom_message_generator("Please enter a text for summarization."))
+
+        else:
+            uploaded_files = st.file_uploader(
+                "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=False
+            )
+            if uploaded_files:
+                text = read_file(uploaded_files)
+                if text == "Unsupported file type.":
+                    st.write_stream(custom_message_generator(text))
+                else:
+                    st.session_state.text_summarization = st.write_stream(summarize_text(text, hf_key))
+            else:
+                st.write_stream(custom_message_generator("Please upload a file for summarization."))
+
         if st.button("Audio Output", key="audio_text_summarization"):
-            speak_text(st.session_state.text_summarization.split("**Summary:**")[-1].strip() if st.session_state.text_summarization != "" else "No response to output.")
+            summary_text = (
+                st.session_state.text_summarization.split("**Summary:**")[-1].strip()
+                if st.session_state.text_summarization
+                else "No response to output."
+            )
+            audio_bytes = speak_text(summary_text)
+            if audio_bytes:
+                st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
 else:
-    uploaded_files = st.file_uploader(
-        "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=True
-    )
-    st.divider()
+    gemini_key = get_gemini_key(st.session_state)
+    if not gemini_key:
+        st.info(missing_key_message("Question Answering", "Gemini"))
+    else:
+        llm, embedding_model, prompt_template, contextualize_q_prompt = init_RAG(gemini_key)
 
-    vector_store = qa_model = None
-
-    if uploaded_files:
-        vector_store = create_vector_store(uploaded_files, embedding_model)
-        qa_model = create_qa_model(
-            vector_store, llm, prompt_template, contextualize_q_prompt
+        uploaded_files = st.file_uploader(
+            "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=True
         )
+        st.divider()
 
-    # Display the chat interface
-    for message in st.session_state.messages:
-        if message["role"] == "user":
-            avatar = "🧑‍💻"
-        else:
-            avatar = "🤖"
+        vector_store = qa_model = None
 
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
+        if uploaded_files:
+            fingerprint = compute_files_fingerprint(uploaded_files)
+            vector_store = get_cached_vector_store(st.session_state, fingerprint)
+            if vector_store is None:
+                with st.spinner("Indexing files…"):
+                    vector_store = create_vector_store(uploaded_files, embedding_model)
+                    store_vector_store(st.session_state, fingerprint, vector_store)
+            else:
+                st.caption("Using cached index for this file set.")
 
-    # Initialize response
-    response = ""
+            qa_model = create_qa_model(vector_store, llm, prompt_template, contextualize_q_prompt)
 
-    # React to user input
-    if query := st.chat_input():
-        # Display user message in chat message container
-        st.chat_message("user", avatar="🧑‍💻").markdown(query)
+        # Display the chat interface
+        for message in st.session_state.messages:
+            avatar = "🧑‍💻" if message["role"] == "user" else "🤖"
+            with st.chat_message(message["role"], avatar=avatar):
+                st.markdown(message["content"])
 
-        # Generate response
-        with st.chat_message("assistant", avatar="🤖"):
-            with st.spinner("Wait for the response..."):
-                if qa_model:
-                    generator = qa(query, qa_model, st.session_state.messages)
-                    generator, generator2 = itertools.tee(generator)
-                    for chunk in generator2:
-                        response += chunk
+        # React to user input
+        if query := st.chat_input():
+            # Display user message in chat message container
+            st.chat_message("user", avatar="🧑‍💻").markdown(query)
 
-                    if response:
-                        st.session_state.messages.append(
-                            {"role": "user", "content": query}
-                        )
-                        st.session_state.messages.append(
-                            {"role": "assistant", "content": response}
-                        )
-
-                    else:
-                        generator = custom_message_generator(
-                            "An error occurred while generating the answer."
-                        )
-
-                else:
-                    generator = custom_message_generator(
-                        "Please upload a file to start the chat."
-                    )
-
-            st.write_stream(generator)
-
-        # Display a random balloon animation
-        if random.random() > 0.9 and response and qa_model:
-            st.balloons()
-
-    _, col1, col2, col3 = st.columns([1, 3, 3, 3])
-    
-    # Add a button to clear the chat history
-    if col1.button("Start New Chat"):
-        st.session_state.messages = []
-        st.rerun()
-        
-    # Add a button for audio input
-    if col2.button("Audio Input"):
-        audio_input = get_audio_input()
-        if audio_input:
-            audio_input = audio_input.capitalize()
-            st.chat_message("user", avatar="🧑‍💻").markdown(audio_input)
+            # Generate response
             with st.chat_message("assistant", avatar="🤖"):
                 with st.spinner("Wait for the response..."):
                     if qa_model:
-                        generator = qa(audio_input, qa_model, st.session_state.messages)
-                        generator, generator2 = itertools.tee(generator)
-                        for chunk in generator2:
-                            response += chunk
-
-                        if response:
-                            st.session_state.messages.append({"role": "user", "content": audio_input})
-                            st.session_state.messages.append({"role": "assistant", "content": response})
-
-                        else:
-                            generator = custom_message_generator("An error occurred while generating the answer.")
+                        response = st.write_stream(qa(query, qa_model, st.session_state.messages))
                     else:
-                        generator = custom_message_generator("Please upload a file to start the chat.")
-                    
-                st.write_stream(generator)
-                
-    # Add a button for audio output
-    if col3.button("Audio Output", key="audio_qa"):
-        audio_response = ""
-        try:
-            last_message = st.session_state.messages[-1]
-        except:
-            last_message = {"role": "assistant", "content": "No response to output."}
-            
-        if last_message["role"] == "assistant":
-            audio_response = last_message["content"]
-        else:
-            audio_response = "No response to output."
-            
-        speak_text(audio_response)
+                        response = st.write_stream(
+                            custom_message_generator("Please upload a file to start the chat.")
+                        )
+
+            if qa_model and response:
+                st.session_state.messages.append({"role": "user", "content": query})
+                st.session_state.messages.append({"role": "assistant", "content": response})
+
+            # Display a random balloon animation
+            if random.random() > 0.9 and response and qa_model:
+                st.balloons()
+
+        _, col1, col2, col3 = st.columns([1, 3, 3, 3])
+
+        # Add a button to clear the chat history
+        if col1.button("Start New Chat"):
+            st.session_state.messages = []
+            st.rerun()
+
+        # Add a widget for voice questions
+        with col2:
+            audio_blob = st.audio_input("Ask by voice")
+        if audio_blob and not has_processed(st.session_state, audio_blob.getvalue()):
+            mark_processed(st.session_state, audio_blob.getvalue())
+            recognized = get_audio_input(audio_blob.getvalue())
+            if recognized:
+                recognized = recognized.capitalize()
+                st.chat_message("user", avatar="🧑‍💻").markdown(recognized)
+                with st.chat_message("assistant", avatar="🤖"):
+                    with st.spinner("Wait for the response..."):
+                        if qa_model:
+                            response = st.write_stream(qa(recognized, qa_model, st.session_state.messages))
+                        else:
+                            response = st.write_stream(
+                                custom_message_generator("Please upload a file to start the chat.")
+                            )
+                if qa_model and response:
+                    st.session_state.messages.append({"role": "user", "content": recognized})
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                st.error("Couldn't understand that recording — please try again.")
+
+        # Add a button for audio output
+        if col3.button("Audio Output", key="audio_qa"):
+            try:
+                last_message = st.session_state.messages[-1]
+            except IndexError:
+                last_message = {"role": "assistant", "content": "No response to output."}
+
+            audio_response = (
+                last_message["content"] if last_message["role"] == "assistant" else "No response to output."
+            )
+            audio_bytes = speak_text(audio_response)
+            if audio_bytes:
+                col3.audio(audio_bytes, format="audio/mp3", autoplay=True)
