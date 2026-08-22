@@ -35,3 +35,17 @@ def test_summarize_text_yields_error_message_on_request_failure(monkeypatch):
     chunks = list(summarize_text("some text", "test-hf-key"))
 
     assert chunks == ["An error occurred while generating the summary."]
+
+
+def test_summarize_text_chunked_path_yields_error_on_failure(monkeypatch):
+    from nlp.summarization import summarize_text
+
+    def fake_post(*args, **kwargs):
+        raise ConnectionError("network down")
+
+    monkeypatch.setattr("nlp.summarization.requests.post", fake_post)
+
+    long_text = "word " * 400  # exceeds MAX_CHUNK_SIZE, exercises the chunked branch
+    chunks = list(summarize_text(long_text, "test-hf-key"))
+
+    assert chunks == ["An error occurred while generating the summary."]
