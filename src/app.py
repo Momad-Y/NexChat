@@ -12,6 +12,7 @@ from audio import get_audio_input, speak_text
 from cv import caption_image
 from nlp import summarize_text, init_RAG, create_vector_store, create_qa_model, qa
 from utils import read_file, custom_message_generator
+from paths import asset_path
 
 random.seed(time.time())
 
@@ -34,7 +35,7 @@ if "audio_input" not in st.session_state:
 # Set page config
 st.set_page_config(
     page_title="NexChat",
-    page_icon="./imgs/icon.png",
+    page_icon=str(asset_path("icon.png")),
     layout="centered",
     initial_sidebar_state="expanded",
 )
@@ -44,7 +45,7 @@ st.title("NexChat 🤖")
 st.write("### AI Powered Chatbot")
 
 # Display logo
-st.sidebar.image("./imgs/logo.png", use_container_width=True)
+st.sidebar.image(str(asset_path("logo.png")), use_container_width=True)
 
 # Display task selection
 task_name = st.sidebar.selectbox(
