@@ -3,8 +3,8 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import Runnable
@@ -25,45 +25,47 @@ def is_qa_failure(response: str) -> bool:
     return response == QA_ERROR_MESSAGE or QA_INTERRUPTED_SUFFIX in response
 
 
-def init_llm_model(gemini_api_key: str) -> ChatGoogleGenerativeAI:
+GLM_BASE_URL = "https://api.z.ai/api/paas/v4/"
+GLM_MODEL = "glm-4.7-flash"
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+
+
+def init_llm_model(glm_api_key: str) -> ChatOpenAI:
     """
-    Initializes and returns an instance of the ChatGoogleGenerativeAI model.
+    Initializes the GLM-4.7-Flash chat model via its OpenAI-compatible API.
 
     Args:
-        gemini_api_key (str): The caller's Gemini API key.
+        glm_api_key (str): The caller's GLM (Z.ai) API key.
 
     Returns:
-        ChatGoogleGenerativeAI: An instance of the ChatGoogleGenerativeAI model.
+        ChatOpenAI: An instance configured against Z.ai's GLM endpoint.
     """
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=gemini_api_key,
+    return ChatOpenAI(
+        model=GLM_MODEL,
+        api_key=glm_api_key,
+        base_url=GLM_BASE_URL,
         temperature=0.1,
-        max_tokens=None,
-        timeout=None,
         max_retries=2,
+        timeout=60,
     )
 
-    return llm
 
-
-def init_embeddings_model(gemini_api_key: str) -> GoogleGenerativeAIEmbeddings:
+def init_embeddings_model(huggingface_api_key: str) -> HuggingFaceEndpointEmbeddings:
     """
-    Initializes the hosted Gemini embeddings model — no local model, no torch.
+    Initializes hosted HuggingFace embeddings — no local model, no torch.
 
     Args:
-        gemini_api_key (str): The caller's Gemini API key.
+        huggingface_api_key (str): The caller's HuggingFace API key.
 
     Returns:
-        GoogleGenerativeAIEmbeddings: The Gemini embeddings model.
-
+        HuggingFaceEndpointEmbeddings: The hosted embeddings model.
     """
-    embedding_model = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
-        google_api_key=gemini_api_key,
+    return HuggingFaceEndpointEmbeddings(
+        model=EMBEDDING_MODEL,
+        provider="hf-inference",
+        task="feature-extraction",
+        huggingfacehub_api_token=huggingface_api_key,
     )
-
-    return embedding_model
 
 
 def init_prompt() -> ChatPromptTemplate:
@@ -118,18 +120,19 @@ def init_prompt() -> ChatPromptTemplate:
     return prompt, contextualize_q_prompt
 
 
-def init_RAG(gemini_api_key: str) -> tuple:
+def init_RAG(glm_api_key: str, huggingface_api_key: str) -> tuple:
     """
-    Initializes the models and templates for a given user's Gemini key.
+    Initializes the models and templates for a given user's GLM and HuggingFace keys.
 
     Args:
-        gemini_api_key (str): The caller's Gemini API key.
+        glm_api_key (str): The caller's GLM (Z.ai) API key.
+        huggingface_api_key (str): The caller's HuggingFace API key.
 
     Returns:
         tuple: A tuple of the initialized models and prompt templates.
     """
-    llm = init_llm_model(gemini_api_key)
-    embedding_model = init_embeddings_model(gemini_api_key)
+    llm = init_llm_model(glm_api_key)
+    embedding_model = init_embeddings_model(huggingface_api_key)
     prompt, contextualize_q_prompt = init_prompt()
 
     return llm, embedding_model, prompt, contextualize_q_prompt
@@ -156,7 +159,7 @@ def split_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> l
 
 
 def create_vector_store(
-    uploaded_files: list[UploadedFile], embedding_model: GoogleGenerativeAIEmbeddings
+    uploaded_files: list[UploadedFile], embedding_model: HuggingFaceEndpointEmbeddings
 ) -> FAISS:
     """
     Initializes the vector store.
@@ -182,7 +185,7 @@ def create_vector_store(
 
 def create_qa_model(
     vector_store: FAISS,
-    llm: ChatGoogleGenerativeAI,
+    llm: ChatOpenAI,
     prompt: ChatPromptTemplate,
     contextualize_q_prompt: ChatPromptTemplate,
 ) -> Runnable:

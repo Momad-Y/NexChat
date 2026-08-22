@@ -10,13 +10,15 @@ def test_init_llm_model_passes_key_as_argument_not_env(monkeypatch):
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
-    monkeypatch.setattr("nlp.RAG.ChatGoogleGenerativeAI", FakeChatModel)
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.setattr("nlp.RAG.ChatOpenAI", FakeChatModel)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    init_llm_model("test-gemini-key")
+    init_llm_model("test-glm-key")
 
-    assert captured["google_api_key"] == "test-gemini-key"
-    assert "GOOGLE_API_KEY" not in os.environ
+    assert captured["api_key"] == "test-glm-key"
+    assert captured["base_url"] == "https://api.z.ai/api/paas/v4/"
+    assert captured["model"] == "glm-4.7-flash"
+    assert "OPENAI_API_KEY" not in os.environ
 
 
 def test_init_embeddings_model_passes_key_as_argument(monkeypatch):
@@ -28,12 +30,14 @@ def test_init_embeddings_model_passes_key_as_argument(monkeypatch):
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
-    monkeypatch.setattr("nlp.RAG.GoogleGenerativeAIEmbeddings", FakeEmbeddings)
+    monkeypatch.setattr("nlp.RAG.HuggingFaceEndpointEmbeddings", FakeEmbeddings)
 
-    init_embeddings_model("test-gemini-key")
+    init_embeddings_model("test-hf-key")
 
-    assert captured["google_api_key"] == "test-gemini-key"
-    assert captured["model"] == "models/text-embedding-004"
+    assert captured["huggingfacehub_api_token"] == "test-hf-key"
+    assert captured["model"] == "BAAI/bge-small-en-v1.5"
+    assert captured["provider"] == "hf-inference"
+    assert captured["task"] == "feature-extraction"
 
 
 def test_build_chat_history_accumulates_all_turns():
