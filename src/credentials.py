@@ -4,7 +4,7 @@ import streamlit as st
 
 from paths import REPO_ROOT
 
-GEMINI_KEY_NAME = "gemini_api_key"
+GLM_KEY_NAME = "glm_api_key"
 HUGGINGFACE_KEY_NAME = "huggingface_api_key"
 
 
@@ -29,9 +29,9 @@ def init_credential_state(session_state: dict, env_values: dict | None = None) -
     if env_values is None:
         env_values = load_dotenv_values()
 
-    if GEMINI_KEY_NAME not in session_state:
-        session_state[GEMINI_KEY_NAME] = resolve_initial_key(
-            None, env_values.get("GEMINI_API_KEY")
+    if GLM_KEY_NAME not in session_state:
+        session_state[GLM_KEY_NAME] = resolve_initial_key(
+            None, env_values.get("GLM_API_KEY")
         )
     if HUGGINGFACE_KEY_NAME not in session_state:
         session_state[HUGGINGFACE_KEY_NAME] = resolve_initial_key(
@@ -39,8 +39,8 @@ def init_credential_state(session_state: dict, env_values: dict | None = None) -
         )
 
 
-def get_gemini_key(session_state: dict) -> str:
-    return session_state.get(GEMINI_KEY_NAME, "")
+def get_glm_key(session_state: dict) -> str:
+    return session_state.get(GLM_KEY_NAME, "")
 
 
 def get_huggingface_key(session_state: dict) -> str:
@@ -52,17 +52,17 @@ def missing_key_message(task_label: str, provider_label: str) -> str:
 
 
 def render_key_sidebar() -> None:
-    """Streamlit wiring — manual/integration verified only (Task 4)."""
+    """Streamlit wiring — manual/integration verified only."""
     init_credential_state(st.session_state)
 
     st.sidebar.text_input(
-        "Gemini API key", type="password", key=GEMINI_KEY_NAME
+        "GLM API key (Z.ai)", type="password", key=GLM_KEY_NAME
     )
     st.sidebar.text_input(
         "HuggingFace API key", type="password", key=HUGGINGFACE_KEY_NAME
     )
 
-    gemini_status = "✅ Gemini connected" if get_gemini_key(st.session_state) else "⚠️ Gemini key missing"
+    glm_status = "✅ GLM connected" if get_glm_key(st.session_state) else "⚠️ GLM key missing"
     hf_status = "✅ HuggingFace connected" if get_huggingface_key(st.session_state) else "⚠️ HuggingFace key missing"
-    st.sidebar.caption(gemini_status)
+    st.sidebar.caption(glm_status)
     st.sidebar.caption(hf_status)
