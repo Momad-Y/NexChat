@@ -7,8 +7,18 @@ from streamlit.testing.v1 import AppTest
 APP_PATH = str(Path(__file__).resolve().parent.parent / "src" / "app.py")
 
 
-def test_qa_branch_shows_both_missing_key_messages_at_once():
-    at = AppTest.from_file(APP_PATH)
+def test_qa_branch_shows_both_missing_key_messages_at_once(monkeypatch):
+    import credentials
+
+    # render_key_sidebar() -> init_credential_state() reads a real REPO_ROOT/.env
+    # for dev-convenience prefill. Without this, a developer with a local .env
+    # (a normal, supported setup) would see this test fail non-hermetically.
+    monkeypatch.setattr(credentials, "load_dotenv_values", lambda: {})
+
+    # default_timeout raised from AppTest's 3s default: a cold import of the
+    # streamlit+langchain+faiss chain can exceed it, causing a flaky timeout
+    # unrelated to the behavior under test (same fix as the test below).
+    at = AppTest.from_file(APP_PATH, default_timeout=30)
     at.run()
     at.sidebar.selectbox[0].select("Question Answering").run()
 
