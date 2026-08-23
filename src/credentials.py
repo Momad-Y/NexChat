@@ -1,6 +1,7 @@
 from dotenv import dotenv_values
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from paths import REPO_ROOT
 
@@ -27,13 +28,23 @@ def resolve_fixed_key(secrets_value: str | None, dotenv_value: str | None) -> st
     return ""
 
 
+def read_secret(env_var_name: str) -> str | None:
+    """st.secrets.get() doesn't return None gracefully when no secrets.toml
+    exists anywhere — it raises StreamlitSecretNotFoundError. That's the
+    normal case for local development, where only .env is used."""
+    try:
+        return st.secrets.get(env_var_name)
+    except StreamlitSecretNotFoundError:
+        return None
+
+
 def get_glm_key() -> str:
-    return resolve_fixed_key(st.secrets.get(GLM_ENV_VAR), load_dotenv_values().get(GLM_ENV_VAR))
+    return resolve_fixed_key(read_secret(GLM_ENV_VAR), load_dotenv_values().get(GLM_ENV_VAR))
 
 
 def get_huggingface_key() -> str:
     return resolve_fixed_key(
-        st.secrets.get(HUGGINGFACE_ENV_VAR), load_dotenv_values().get(HUGGINGFACE_ENV_VAR)
+        read_secret(HUGGINGFACE_ENV_VAR), load_dotenv_values().get(HUGGINGFACE_ENV_VAR)
     )
 
 

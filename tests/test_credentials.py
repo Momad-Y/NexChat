@@ -91,6 +91,53 @@ def test_get_huggingface_key_falls_back_to_dotenv_when_no_secret(monkeypatch):
     assert credentials.get_huggingface_key() == "dotenv-hf-key"
 
 
+def test_get_glm_key_falls_back_to_dotenv_when_no_secrets_file_exists(monkeypatch):
+    # st.secrets.get() doesn't return None gracefully when no secrets.toml
+    # exists anywhere (the normal local-dev case) — it raises
+    # StreamlitSecretNotFoundError. Reproduces that exact failure mode.
+    import credentials
+    from streamlit.errors import StreamlitSecretNotFoundError
+
+    class RaisingSecrets:
+        def get(self, key, default=None):
+            raise StreamlitSecretNotFoundError("no secrets.toml found")
+
+    monkeypatch.setattr(credentials.st, "secrets", RaisingSecrets())
+    monkeypatch.setattr(credentials, "load_dotenv_values", lambda: {"GLM_API_KEY": "dotenv-glm-key"})
+
+    assert credentials.get_glm_key() == "dotenv-glm-key"
+
+
+def test_get_huggingface_key_falls_back_to_dotenv_when_no_secrets_file_exists(monkeypatch):
+    import credentials
+    from streamlit.errors import StreamlitSecretNotFoundError
+
+    class RaisingSecrets:
+        def get(self, key, default=None):
+            raise StreamlitSecretNotFoundError("no secrets.toml found")
+
+    monkeypatch.setattr(credentials.st, "secrets", RaisingSecrets())
+    monkeypatch.setattr(
+        credentials, "load_dotenv_values", lambda: {"HUGGINGFACE_API_KEY": "dotenv-hf-key"}
+    )
+
+    assert credentials.get_huggingface_key() == "dotenv-hf-key"
+
+
+def test_get_glm_key_empty_when_no_secrets_file_and_no_dotenv(monkeypatch):
+    import credentials
+    from streamlit.errors import StreamlitSecretNotFoundError
+
+    class RaisingSecrets:
+        def get(self, key, default=None):
+            raise StreamlitSecretNotFoundError("no secrets.toml found")
+
+    monkeypatch.setattr(credentials.st, "secrets", RaisingSecrets())
+    monkeypatch.setattr(credentials, "load_dotenv_values", lambda: {})
+
+    assert credentials.get_glm_key() == ""
+
+
 def test_missing_keys_message_names_both_env_vars():
     from credentials import missing_keys_message
 
