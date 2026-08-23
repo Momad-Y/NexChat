@@ -6,23 +6,23 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 
 ## Tasks
 
--   **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
--   **Summarization:** Utilizes `facebook/bart-large-cnn` (HuggingFace) for document summarization.
--   **Image Captioning:** Powered by `glm-4.6v-flash` (Z.ai), a free vision-language model — HuggingFace's classic single-purpose captioning models no longer have any live inference provider, so this task runs on GLM instead.
--   **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
--   **Speech Recognition:** Recordings are captured in the browser with Streamlit's `st.audio_input` widget and transcribed with Google's `speech_recognition` library — no server-side audio device access.
+- **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
+- **Summarization:** Utilizes `facebook/bart-large-cnn` (HuggingFace) for document summarization.
+- **Image Captioning:** Powered by `glm-4.6v-flash` (Z.ai), a free vision-language model — HuggingFace's classic single-purpose captioning models no longer have any live inference provider, so this task runs on GLM instead.
+- **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
+- **Speech Recognition:** Recordings are captured in the browser with Streamlit's `st.audio_input` widget and transcribed with Google's `speech_recognition` library — no server-side audio device access.
 
 ## Methodology (Tech Stack)
 
--   **Programming Language:** Python 3.11.\*
--   **Frameworks and Libraries:**
-    -   Streamlit for the UI
-    -   LangChain for retrieval-augmented generation
-    -   GLM (Z.ai, OpenAI-compatible) for chat (`glm-4.7-flash`, via `langchain-openai`) and image captioning (`glm-4.6v-flash`, via a direct chat-completions call)
-    -   HuggingFace Inference API (hosted) for embeddings (via `langchain-huggingface`) and summarization
-    -   Faiss for vector storage and retrieval
-    -   gTTS for text-to-speech
-    -   SpeechRecognition for audio-to-text processing
+- **Programming Language:** Python 3.11.\*
+- **Frameworks and Libraries:**
+    - Streamlit for the UI
+    - LangChain for retrieval-augmented generation
+    - GLM (Z.ai, OpenAI-compatible) for chat (`glm-4.7-flash`, via `langchain-openai`) and image captioning (`glm-4.6v-flash`, via a direct chat-completions call)
+    - HuggingFace Inference API (hosted) for embeddings (via `langchain-huggingface`) and summarization
+    - Faiss for vector storage and retrieval
+    - gTTS for text-to-speech
+    - SpeechRecognition for audio-to-text processing
 
 ## Project File Structure
 
@@ -82,11 +82,19 @@ NexChat/
 ### Installation
 
 1. Clone the repository:
+
     ```bash
     git clone https://github.com/Momad-Y/NexChat.git
     cd NexChat
     ```
-2. Install Python dependencies:
+
+2. Create a virtual environment:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate # On Windows use `source venv/Scripts/activate`
+    ```
+3. Install Python dependencies:
+
     ```bash
     pip install -r requirements.txt
     ```
@@ -97,13 +105,13 @@ NexChat runs on two free-tier API keys — **GLM (Z.ai)** and **HuggingFace** �
 once by whoever runs the app, not by each visitor. Both providers currently offer these
 for free, so a single deployed instance can serve everyone at no cost to the operator.
 
--   **Local development:** create a `.env` file at the repository root:
+- **Local development:** create a `.env` file at the repository root:
     ```
     GLM_API_KEY=your_key_here
     HUGGINGFACE_API_KEY=your_key_here
     ```
--   **Deployed (Streamlit Community Cloud):** set the same two keys in the app's
-    **Settings → Secrets** panel, using TOML syntax:
+- **Deployed (Streamlit Community Cloud):** set the same two keys in the app's
+  **Settings → Secrets** panel, using TOML syntax:
     ```toml
     GLM_API_KEY = "your_key_here"
     HUGGINGFACE_API_KEY = "your_key_here"
@@ -160,11 +168,16 @@ container image needed.
 
 ## Used Resources
 
--   **Hugging Face Inference Providers Documentation:** [https://huggingface.co/docs/inference-providers](https://huggingface.co/docs/inference-providers)
--   **Z.ai GLM API Documentation:** [https://docs.z.ai/guides/overview/quick-start](https://docs.z.ai/guides/overview/quick-start)
--   **LangChain Documentation:** [https://docs.langchain.com](https://docs.langchain.com)
--   **Streamlit Documentation:** [https://docs.streamlit.io](https://docs.streamlit.io)
+- **Hugging Face Inference Providers Documentation:** [https://huggingface.co/docs/inference-providers](https://huggingface.co/docs/inference-providers)
+- **Z.ai GLM API Documentation:** [https://docs.z.ai/guides/overview/quick-start](https://docs.z.ai/guides/overview/quick-start)
+- **LangChain Documentation:** [https://docs.langchain.com](https://docs.langchain.com)
+- **Streamlit Documentation:** [https://docs.streamlit.io](https://docs.streamlit.io)
 
 ## Conclusion
 
-This project integrates state-of-the-art NLP and computer vision models into an interactive chatbot with RAG and audio capabilities, handling multimodal tasks and user interactions. It aligns with the course content of 'Selected Topics in AI,' demonstrating practical AI applications.
+NexChat integrates retrieval-augmented question answering, summarization, image
+captioning, and browser-based audio into a single interactive chatbot — running
+entirely on free-tier GLM and HuggingFace models, with no paid API required to
+host or run it. It's fully open source (MIT licensed) and deploys directly from
+this GitHub repository to Streamlit Community Cloud, so anyone can fork it, add
+their own keys, and have a working instance in minutes.
