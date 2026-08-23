@@ -245,14 +245,42 @@ else:
                 vector_store, llm, prompt_template, contextualize_q_prompt
             )
 
-    # Display the chat interface
-    for message in st.session_state.messages:
+    # Add a button to clear the chat history
+    if st.button("Start New Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+    # Display the chat interface, with a play-audio button under each
+    # assistant response (matches modern chatbot UIs instead of one global
+    # button that only ever acted on the most recent message).
+    for i, message in enumerate(st.session_state.messages):
         avatar = "🧑‍💻" if message["role"] == "user" else "🤖"
         with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"])
+            if message["role"] == "assistant":
+                if st.button("", icon="🔊", key=f"qa_speak_{i}", help="Play audio"):
+                    audio_bytes = speak_text(message["content"])
+                    if audio_bytes:
+                        st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
-    # React to user input
-    if query := st.chat_input():
+    # React to user input — typed text or a voice recording, both submitted
+    # through the same chat_input widget via its embedded mic icon.
+    submission = st.chat_input(
+        "Ask a question about your uploaded files…", accept_audio=True
+    )
+
+    query = None
+    if submission is not None:
+        if submission.audio is not None:
+            recognized = get_audio_input(submission.audio.getvalue())
+            if recognized:
+                query = recognized.capitalize()
+            else:
+                st.error("Couldn't understand that recording — please try again.")
+        elif submission.text:
+            query = submission.text
+
+    if query:
         # Display user message in chat message container
         st.chat_message("user", avatar="🧑‍💻").markdown(query)
 
@@ -285,6 +313,15 @@ else:
                 st.session_state.messages.append(
                     {"role": "assistant", "content": response}
                 )
+                if st.button(
+                    "",
+                    icon="🔊",
+                    key=f"qa_speak_{len(st.session_state.messages) - 1}",
+                    help="Play audio",
+                ):
+                    audio_bytes = speak_text(response)
+                    if audio_bytes:
+                        st.audio(audio_bytes, format="audio/mp3", autoplay=True)
 
             # Display a random balloon animation
             if (
@@ -294,68 +331,3 @@ else:
                 and not is_qa_failure(response)
             ):
                 st.balloons()
-
-    _, col1, col2, col3 = st.columns([1, 3, 3, 3])
-
-    # Add a button to clear the chat history
-    if col1.button("Start New Chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-    # Add a widget for voice questions
-    with col2:
-        audio_blob = st.audio_input("Ask by voice")
-    if audio_blob and not has_processed(
-        st.session_state, audio_blob.getvalue(), key="audio_qa_last_hash"
-    ):
-        mark_processed(
-            st.session_state, audio_blob.getvalue(), key="audio_qa_last_hash"
-        )
-        recognized = get_audio_input(audio_blob.getvalue())
-        if recognized:
-            recognized = recognized.capitalize()
-            st.chat_message("user", avatar="🧑‍💻").markdown(recognized)
-            attempted_qa = False
-            with st.chat_message("assistant", avatar="🤖"):
-                with st.spinner("Wait for the response..."):
-                    if not qa_model:
-                        response = st.write_stream(
-                            custom_message_generator(
-                                "Please upload a file to start the chat."
-                            )
-                        )
-                    elif not has_capacity(st.session_state):
-                        response = st.write_stream(
-                            custom_message_generator(RATE_LIMIT_MESSAGE)
-                        )
-                    else:
-                        record_request(st.session_state)
-                        attempted_qa = True
-                        response = st.write_stream(
-                            qa(recognized, qa_model, st.session_state.messages)
-                        )
-            if attempted_qa and response and not is_qa_failure(response):
-                st.session_state.messages.append(
-                    {"role": "user", "content": recognized}
-                )
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": response}
-                )
-        else:
-            st.error("Couldn't understand that recording — please try again.")
-
-    # Add a button for audio output
-    if col3.button("Audio Output", key="audio_qa"):
-        try:
-            last_message = st.session_state.messages[-1]
-        except IndexError:
-            last_message = {"role": "assistant", "content": "No response to output."}
-
-        audio_response = (
-            last_message["content"]
-            if last_message["role"] == "assistant"
-            else "No response to output."
-        )
-        audio_bytes = speak_text(audio_response)
-        if audio_bytes:
-            col3.audio(audio_bytes, format="audio/mp3", autoplay=True)
