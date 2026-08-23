@@ -1,8 +1,8 @@
-# (NexChat) AI Chatbot with Multimodal Capabilities
+# NexChat (Multimodal AI Chatbot)
 
 ## Project Description
 
-This project delivers an AI-powered chatbot with versatile capabilities, including document-based question answering and summarization, image captioning, and audio interaction.
+NexChat is a multimodal AI chatbot with versatile capabilities, including document-based question answering and summarization, image captioning, and audio interaction.
 
 ## Features
 
