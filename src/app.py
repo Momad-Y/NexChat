@@ -95,7 +95,7 @@ if task_name == "Image Captioning":
         _, col21, col22 = col2.columns([1, 6, 6])
 
         # Display the uploaded image in the first column
-        col1.image(uploaded_files, caption="Uploaded Image", width="stretch")
+        col1.image(uploaded_files, caption="Uploaded Image", use_container_width=True)
 
         # Display the caption button in the second column
         if col21.button("Caption Image"):
