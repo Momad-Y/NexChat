@@ -214,7 +214,6 @@ else:
     uploaded_files = st.file_uploader(
         "Upload a file", type=["pdf", "csv", "txt", "md"], accept_multiple_files=True
     )
-    st.divider()
 
     vector_store = qa_model = None
 
@@ -250,15 +249,26 @@ else:
         st.session_state.messages = []
         st.rerun()
 
+    st.divider()
+
     # Display the chat interface, with a play-audio button under each
     # assistant response (matches modern chatbot UIs instead of one global
-    # button that only ever acted on the most recent message).
+    # button that only ever acted on the most recent message). Built-in
+    # "user"/"assistant" avatars are used instead of raw emoji — the robot
+    # emoji doesn't render as a proper glyph in some browsers/fonts, while
+    # these preset icons render consistently and match each other visually.
     for i, message in enumerate(st.session_state.messages):
-        avatar = "🧑‍💻" if message["role"] == "user" else "🤖"
+        avatar = "user" if message["role"] == "user" else "assistant"
         with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"])
             if message["role"] == "assistant":
-                if st.button("", icon="🔊", key=f"qa_speak_{i}", help="Play audio"):
+                if st.button(
+                    "",
+                    icon="🔊",
+                    key=f"qa_speak_{i}",
+                    help="Play audio",
+                    type="tertiary",
+                ):
                     audio_bytes = speak_text(message["content"])
                     if audio_bytes:
                         st.audio(audio_bytes, format="audio/mp3", autoplay=True)
@@ -282,14 +292,14 @@ else:
 
     if query:
         # Display user message in chat message container
-        st.chat_message("user", avatar="🧑‍💻").markdown(query)
+        st.chat_message("user", avatar="user").markdown(query)
 
         # Generate response. attempted_qa only becomes True when qa() was
         # actually called — gates the history append below so a rate-limited
         # or no-file placeholder message never gets persisted and replayed
         # to the model as real prior context on a later turn.
         attempted_qa = False
-        with st.chat_message("assistant", avatar="🤖"):
+        with st.chat_message("assistant", avatar="assistant"):
             with st.spinner("Wait for the response..."):
                 if not qa_model:
                     response = st.write_stream(
@@ -318,6 +328,7 @@ else:
                     icon="🔊",
                     key=f"qa_speak_{len(st.session_state.messages) - 1}",
                     help="Play audio",
+                    type="tertiary",
                 ):
                     audio_bytes = speak_text(response)
                     if audio_bytes:
