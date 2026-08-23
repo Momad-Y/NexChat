@@ -96,7 +96,7 @@ if task_name == "Image Captioning":
         if col21.button("Caption Image"):
             if has_capacity(st.session_state):
                 record_request(st.session_state)
-                st.session_state.image_caption = caption_image(uploaded_files, hf_key)
+                st.session_state.image_caption = caption_image(uploaded_files, glm_key)
             else:
                 st.warning(RATE_LIMIT_MESSAGE)
         if st.session_state.image_caption:
