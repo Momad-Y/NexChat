@@ -50,7 +50,7 @@ st.set_page_config(
 st.title("NexChat (Multimodal AI Chatbot)")
 
 # Display logo
-st.sidebar.image(str(asset_path("logo.png")), use_container_width=True)
+st.sidebar.image(str(asset_path("logo.png")), width=120)
 
 # Display task selection
 task_name = st.sidebar.selectbox(
@@ -58,17 +58,19 @@ task_name = st.sidebar.selectbox(
     ["Question Answering", "Text Summarization", "Image Captioning"],
 )
 
-with st.sidebar.expander("About"):
-    st.markdown("## **[Repository Link](https://github.com/Momad-Y/NexChat)**")
-    st.markdown("## Done By:")
-    st.markdown("##### **Begad M Tamim**")
-    st.markdown(
-        "##### [Github](https://github.com/begad-tamim) | [LinkedIn](https://www.linkedin.com/in/begad-tamim/) | [Email](mailto:begadtamim.a@gmail.com)"
-    )
-    st.markdown("##### **Mohamed Y Abdelnasser**")
-    st.markdown(
-        "##### [Github](https://github.com/Momad-Y) | [LinkedIn](https://www.linkedin.com/in/mohamed-y-abdelnasser/) | [Email](mailto:Mohamed.Y.Abdelnasser@gmail.com)"
-    )
+st.sidebar.divider()
+st.sidebar.markdown("**[Repository Link](https://github.com/Momad-Y/NexChat)**")
+st.sidebar.caption("Done by:")
+st.sidebar.caption(
+    "**Begad M Tamim** — [Github](https://github.com/begad-tamim) | "
+    "[LinkedIn](https://www.linkedin.com/in/begad-tamim/) | "
+    "[Email](mailto:begadtamim.a@gmail.com)"
+)
+st.sidebar.caption(
+    "**Mohamed Y Abdelnasser** — [Github](https://github.com/Momad-Y) | "
+    "[LinkedIn](https://www.linkedin.com/in/mohamed-y-abdelnasser/) | "
+    "[Email](mailto:Mohamed.Y.Abdelnasser@gmail.com)"
+)
 
 # NexChat now runs on fixed, operator-configured keys (.env locally,
 # Streamlit secrets when deployed) rather than per-user BYOK — a missing
