@@ -50,7 +50,7 @@ st.set_page_config(
 st.title("NexChat (Multimodal AI Chatbot)")
 
 # Display logo
-st.sidebar.image(str(asset_path("logo.png")), width=120)
+st.sidebar.image(str(asset_path("logo.png")), width="stretch")
 
 # Display task selection
 task_name = st.sidebar.selectbox(
@@ -95,7 +95,7 @@ if task_name == "Image Captioning":
         _, col21, col22 = col2.columns([1, 6, 6])
 
         # Display the uploaded image in the first column
-        col1.image(uploaded_files, caption="Uploaded Image", use_container_width=True)
+        col1.image(uploaded_files, caption="Uploaded Image", width="stretch")
 
         # Display the caption button in the second column
         if col21.button("Caption Image"):
@@ -167,7 +167,7 @@ elif task_name == "Text Summarization":
     else:
         uploaded_files = st.file_uploader(
             "Upload a file",
-            type=["pdf", "csv", "txt", "md"],
+            type=["pdf", "txt", "md"],
             accept_multiple_files=False,
         )
         if uploaded_files:
