@@ -84,22 +84,35 @@ NexChat/
     pip install -r requirements.txt
     ```
 
-### Configuration (BYOK)
+### Configuration
 
-NexChat is bring-your-own-key. There is nothing to configure before running it:
-enter your **GLM (Z.ai)** and **HuggingFace** API keys directly in the app's sidebar at
-runtime. Keys live only in your Streamlit session, are never written to disk, and
-are never shared between users — so the same deployed instance can serve everyone
-with their own keys.
+NexChat runs on two free-tier API keys — **GLM (Z.ai)** and **HuggingFace** — configured
+once by whoever runs the app, not by each visitor. Both providers currently offer these
+for free, so a single deployed instance can serve everyone at no cost to the operator.
 
--   **Optional, local development only:** a `.env` file at the repository root
-    auto-fills those sidebar fields so you don't have to retype your keys on every
-    restart. It is a convenience for your own machine — end users and deployed
-    instances do not need one.
+-   **Local development:** create a `.env` file at the repository root:
     ```
     GLM_API_KEY=your_key_here
     HUGGINGFACE_API_KEY=your_key_here
     ```
+-   **Deployed (Streamlit Community Cloud):** set the same two keys in the app's
+    **Settings → Secrets** panel, using TOML syntax:
+    ```toml
+    GLM_API_KEY = "your_key_here"
+    HUGGINGFACE_API_KEY = "your_key_here"
+    ```
+    See `.streamlit/secrets.toml.example` for a template — copy it to
+    `.streamlit/secrets.toml` for local secrets-based testing (this file is
+    gitignored; Community Cloud's Secrets panel is the source of truth once deployed).
+
+If either key is missing, the app shows a single configuration error instead of
+starting — this is a deployment issue for the operator to fix, not something an
+end user needs to act on.
+
+**Shared-quota rate limiting:** because every visitor draws from the same free-tier
+keys, each browser session is capped at 20 requests (combined across all three
+features) before it's asked to refresh the page. This bounds how much of the shared
+quota any single visitor can consume.
 
 ### Running the Application
 
@@ -107,8 +120,7 @@ with their own keys.
     ```bash
     streamlit run src/app.py
     ```
-2. Enter your GLM (Z.ai) and HuggingFace API keys in the sidebar.
-3. Audio is fully browser-based: recording goes through the browser's microphone via
+2. Audio is fully browser-based: recording goes through the browser's microphone via
    Streamlit's `st.audio_input` widget (your browser will ask for microphone access)
    and playback happens in the browser via `st.audio`. The server never touches an
    audio device, so this works identically locally and when deployed.
