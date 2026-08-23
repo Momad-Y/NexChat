@@ -1,5 +1,0 @@
-Recently, deep learning has gained popularity in the field of natural language processing,
-and many pre-trained models have been developed to tackle various NLP tasks. One such model is BART,
-which stands for Bidirectional and Auto-Regressive Transformers.
-BART is a denoising autoencoder that is trained by corrupting text with an arbitrary noising function and then learning to reconstruct the original text.
-In this article, we will explore how to use BARt for text generation tasks using the Hugging Face Transformers library.
