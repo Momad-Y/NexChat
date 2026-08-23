@@ -4,7 +4,7 @@
 
 This project delivers an AI-powered chatbot with versatile capabilities, including document-based question answering and summarization, image captioning, and audio interaction.
 
-## Tasks
+## Features
 
 - **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
 - **Summarization:** Utilizes `facebook/bart-large-cnn` (HuggingFace) for document summarization.
@@ -181,3 +181,13 @@ entirely on free-tier GLM and HuggingFace models, with no paid API required to
 host or run it. It's fully open source (MIT licensed) and deploys directly from
 this GitHub repository to Streamlit Community Cloud, so anyone can fork it, add
 their own keys, and have a working instance in minutes.
+
+## [Repository Link](https://github.com/Momad-Y/NexChat)
+
+## Done By
+
+**Begad M Tamim**
+[Github](https://github.com/begad-tamim) | [LinkedIn](https://www.linkedin.com/in/begad-tamim/) | [Email](mailto:begadtamim.a@gmail.com)
+
+**Mohamed Y Abdelnasser**
+[Github](https://github.com/Momad-Y) | [LinkedIn](https://www.linkedin.com/in/mohamed-y-abdelnasser/) | [Email](mailto:Mohamed.Y.Abdelnasser@gmail.com)
