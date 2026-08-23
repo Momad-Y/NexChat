@@ -7,8 +7,8 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 ## Tasks
 
 -   **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
--   **Summarization:** Utilizes `facebook/bart-large-cnn` for document summarization.
--   **Image Captioning:** Employs `blip-image-captioning-base` for generating captions from images.
+-   **Summarization:** Utilizes `facebook/bart-large-cnn` (HuggingFace) for document summarization.
+-   **Image Captioning:** Powered by `glm-4.6v-flash` (Z.ai), a free vision-language model — HuggingFace's classic single-purpose captioning models no longer have any live inference provider, so this task runs on GLM instead.
 -   **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
 -   **Speech Recognition:** Recordings are captured in the browser with Streamlit's `st.audio_input` widget and transcribed with Google's `speech_recognition` library — no server-side audio device access.
 
@@ -18,8 +18,8 @@ This project delivers an AI-powered chatbot with versatile capabilities, includi
 -   **Frameworks and Libraries:**
     -   Streamlit for the UI
     -   LangChain for retrieval-augmented generation
-    -   GLM-4.7-Flash (Z.ai, OpenAI-compatible) for chat via `langchain-openai`
-    -   HuggingFace Inference API (hosted) for embeddings (via `langchain-huggingface`), summarization, and image captioning
+    -   GLM (Z.ai, OpenAI-compatible) for chat (`glm-4.7-flash`, via `langchain-openai`) and image captioning (`glm-4.6v-flash`, via a direct chat-completions call)
+    -   HuggingFace Inference API (hosted) for embeddings (via `langchain-huggingface`) and summarization
     -   Faiss for vector storage and retrieval
     -   gTTS for text-to-speech
     -   SpeechRecognition for audio-to-text processing
@@ -48,23 +48,30 @@ NexChat/
 │   ├── app.py
 │   ├── credentials.py
 │   ├── paths.py
+│   ├── rate_limit.py
 │   ├── utils.py
 ├── tests/
 │   ├── __init__.py
+│   ├── test_app_credentials_gate.py
+│   ├── test_app_qa_branch.py
 │   ├── test_audio_input.py
 │   ├── test_audio_output.py
 │   ├── test_credentials.py
 │   ├── test_image_captioning.py
 │   ├── test_paths.py
 │   ├── test_rag.py
+│   ├── test_rate_limit.py
 │   ├── test_smoke.py
 │   ├── test_summarization.py
 │   ├── test_utils.py
 │   ├── test_vector_cache.py
-├── .env                  # optional, local development only
+├── .streamlit/
+│   ├── secrets.toml.example   # copy to secrets.toml for deployed keys
+├── .env                       # optional, local development only
+├── .env.example
 ├── .gitignore
 ├── conftest.py
-├── packages.txt          # empty — no system packages needed
+├── packages.txt                # empty — no system packages needed
 ├── README.md
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -124,6 +131,18 @@ quota any single visitor can consume.
    Streamlit's `st.audio_input` widget (your browser will ask for microphone access)
    and playback happens in the browser via `st.audio`. The server never touches an
    audio device, so this works identically locally and when deployed.
+
+## Deployment (Streamlit Community Cloud)
+
+NexChat deploys straight from its GitHub repository — no separate build step or
+container image needed.
+
+1. Push your changes to [github.com/Momad-Y/NexChat](https://github.com/Momad-Y/NexChat).
+2. On [share.streamlit.io](https://share.streamlit.io), create a new app and point it at
+   this GitHub repository, branch `main`, with `src/app.py` as the entrypoint.
+3. In the app's **Settings → Secrets** panel, add the two keys described in
+   [Configuration](#configuration) above (`GLM_API_KEY`, `HUGGINGFACE_API_KEY`).
+4. Deploy. Every push to `main` redeploys automatically.
 
 ## Demo Screenshots
 
