@@ -1,9 +1,9 @@
 import requests
 from typing import Generator
 
-API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
-MAX_CHUNK_SIZE = 1000
-MAX_NEW_TOKENS = 50
+API_URL = "https://router.huggingface.co/hf-inference/models/pszemraj/led-large-book-summary"
+MAX_CHUNK_SIZE = 4000
+MAX_NEW_TOKENS = 180
 
 
 def summarize_text(text: str, huggingface_api_key: str) -> Generator[str, str, str]:
@@ -21,7 +21,7 @@ def summarize_text(text: str, huggingface_api_key: str) -> Generator[str, str, s
                 "parameters": {"max_new_tokens": MAX_NEW_TOKENS},
             }
             try:
-                response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+                response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 yield response.json()[0]["summary_text"] + " "
             except Exception:
@@ -29,9 +29,12 @@ def summarize_text(text: str, huggingface_api_key: str) -> Generator[str, str, s
                 return
 
     else:
-        payload = {"inputs": text}
+        payload = {
+            "inputs": text,
+            "parameters": {"max_new_tokens": MAX_NEW_TOKENS},
+        }
         try:
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
             summary = response.json()[0]["summary_text"]
         except Exception:

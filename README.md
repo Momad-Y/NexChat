@@ -7,7 +7,7 @@ NexChat is a multimodal AI chatbot with versatile capabilities, including docume
 ## Features
 
 - **Question Answering:** Powered by RAG using `glm-4.7-flash` (Z.ai) as the LLM, hosted HuggingFace embeddings (`BAAI/bge-small-en-v1.5`) as the embedding model — no local embedding model, no torch dependency — and Faiss as the vector store.
-- **Summarization:** Utilizes `facebook/bart-large-cnn` (HuggingFace) for document summarization.
+- **Summarization:** Utilizes `pszemraj/led-large-book-summary` (HuggingFace) for document summarization — a long-context (16K token) model chosen over the previous `facebook/bart-large-cnn` (1024 token limit) to reduce lossy chunking on longer PDF/TXT/MD input.
 - **Image Captioning:** Powered by `glm-4.6v-flash` (Z.ai), a free vision-language model — HuggingFace's classic single-purpose captioning models no longer have any live inference provider, so this task runs on GLM instead.
 - **Text-to-Speech (TTS):** Uses `gTTS` to convert text responses into spoken audio, played back in the browser through `st.audio`.
 - **Speech Recognition:** Recordings are captured in the browser with Streamlit's `st.audio_input` widget and transcribed with Google's `speech_recognition` library — no server-side audio device access.
