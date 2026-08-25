@@ -2,8 +2,6 @@
   <img src="imgs/logo.png" alt="NexChat logo" width="200">
 </p>
 
-# NexChat (Multimodal AI Chatbot)
-
 <p align="center">
   <strong>100% free to run and host yourself — no paid API keys required.</strong><br>
   Zero-cost hosting is one of this project's core goals: NexChat runs entirely on
