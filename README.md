@@ -182,17 +182,6 @@ container image needed.
 - **LangChain Documentation:** [https://docs.langchain.com](https://docs.langchain.com)
 - **Streamlit Documentation:** [https://docs.streamlit.io](https://docs.streamlit.io)
 
-## Conclusion
-
-NexChat integrates retrieval-augmented question answering, summarization, image
-captioning, and browser-based audio into a single interactive chatbot — running
-entirely on free-tier GLM and HuggingFace models, with no paid API required to
-host or run it. It's fully open source (MIT licensed) and deploys directly from
-this GitHub repository to Streamlit Community Cloud, so anyone can fork it, add
-their own keys, and have a working instance in minutes.
-
-## [Repository Link](https://github.com/Momad-Y/NexChat)
-
 ## Done By
 
 **Begad M Tamim**
